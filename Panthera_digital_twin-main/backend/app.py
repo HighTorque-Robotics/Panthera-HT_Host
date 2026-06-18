@@ -64,13 +64,15 @@ target_velocity = 0.6
 max_torque = [10.0, 10.0, 10.0, 10.0, 10.0, 2.0]
 reset_profile_active = False
 reset_profile_target = [0.0] * 6
+reset_profile_started_at = 0.0
 reset_gripper_active = False
 reset_gripper_target = 0.0
 RESET_MAX_VELOCITY = 0.7
 RESET_MIN_VELOCITY = 0.12
 RESET_VELOCITY_GAIN = 1.8
-RESET_VELOCITY_OFFSET = 0.04
-RESET_NEAR_ZERO_THRESHOLD = 0.015
+RESET_VELOCITY_OFFSET = 0.06
+RESET_NEAR_ZERO_THRESHOLD = 0.01
+RESET_ACCEL_DURATION = 0.32
 
 # Current state
 current_positions = [0.0] * 6
@@ -445,6 +447,18 @@ def _reset_velocity_from_error(error):
     )
 
 
+def _smoothstep(progress):
+    progress = max(0.0, min(1.0, progress))
+    return progress * progress * (3.0 - 2.0 * progress)
+
+
+def _reset_accel_velocity_cap(elapsed):
+    if RESET_ACCEL_DURATION <= 0:
+        return RESET_MAX_VELOCITY
+    progress = _smoothstep(elapsed / RESET_ACCEL_DURATION)
+    return RESET_MIN_VELOCITY + (RESET_MAX_VELOCITY - RESET_MIN_VELOCITY) * progress
+
+
 def _clamp_arm_positions(positions):
     arm_config = _arm_joint_config()
     next_positions = list(positions[:len(target_positions)])
@@ -456,13 +470,14 @@ def _clamp_arm_positions(positions):
 
 
 def _start_smooth_position_reset():
-    global target_positions, target_velocity, reset_profile_active, reset_profile_target
+    global target_positions, target_velocity, reset_profile_active, reset_profile_target, reset_profile_started_at
     global reset_gripper_active, reset_gripper_target
 
     reset_profile_target[:] = [0.0] * len(target_positions)
     target_positions[:] = reset_profile_target.copy()
     reset_gripper_target = 0.0
     reset_gripper_active = True
+    reset_profile_started_at = time.time()
     target_velocity = RESET_MAX_VELOCITY
     reset_profile_active = True
 
@@ -559,6 +574,7 @@ def control_loop():
                     vel_target = target_velocity
                     reset_active = reset_profile_active
                     reset_target = reset_profile_target.copy()
+                    reset_started_at = reset_profile_started_at
                     gripper_reset_active = reset_gripper_active
                     gripper_reset_target = reset_gripper_target
                     imp_target = impedance_target.copy()
@@ -580,7 +596,8 @@ def control_loop():
                         targets = reset_target[:len(targets)]
                         errors = [abs(targets[i] - current_positions[i]) for i in range(len(targets))]
                         max_error = max(errors) if errors else 0.0
-                        vel = [_reset_velocity_from_error(error) for error in errors]
+                        accel_cap = _reset_accel_velocity_cap(time.time() - reset_started_at)
+                        vel = [min(accel_cap, _reset_velocity_from_error(error)) for error in errors]
                         if max_error < RESET_NEAR_ZERO_THRESHOLD:
                             vel = [RESET_MIN_VELOCITY] * len(targets)
                     else:
@@ -590,7 +607,8 @@ def control_loop():
                     if gripper_reset_active:
                         current_gripper_position = _read_gripper_position()
                         gripper_error = abs(gripper_reset_target - current_gripper_position)
-                        gripper_velocity = _reset_velocity_from_error(gripper_error)
+                        accel_cap = _reset_accel_velocity_cap(time.time() - reset_started_at)
+                        gripper_velocity = min(accel_cap, _reset_velocity_from_error(gripper_error))
                         if gripper_error < RESET_NEAR_ZERO_THRESHOLD:
                             gripper_velocity = RESET_MIN_VELOCITY
                         _set_gripper_target(gripper_reset_target, velocity=gripper_velocity)
