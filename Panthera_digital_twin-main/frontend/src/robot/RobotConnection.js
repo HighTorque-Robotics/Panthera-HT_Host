@@ -26,7 +26,7 @@ export class RobotConnection {
         this.onError = null            // (error) => void
         this.onModeChanged = null      // (mode) => void
 
-        // Control mode: 'position', 'gravity_comp', 'impedance'
+        // Control mode: 'position', 'gravity_comp', 'gravity_friction', 'impedance'
         this.controlMode = 'position'
 
         // State cache
@@ -171,14 +171,17 @@ export class RobotConnection {
 
     /**
      * Send all joints position command
-     * @param {number[]} positions - Array of 6 joint positions in radians
+     * @param {number[]|null} positions - Array of 6 joint positions in radians, or null for gripper-only commands
      * @param {number} [velocity] - Movement velocity (optional)
      * @param {number|null} [gripper] - Gripper target position (optional)
      */
     moveAll(positions, velocity = null, gripper = null) {
         if (!this.connected || !this.socket) return
 
-        const data = { positions }
+        const data = {}
+        if (positions !== null) {
+            data.positions = positions
+        }
         if (velocity !== null) {
             data.velocity = velocity
         }
@@ -247,12 +250,12 @@ export class RobotConnection {
 
     /**
      * Set control mode
-     * @param {string} mode - 'position', 'gravity_comp', or 'impedance'
+     * @param {string} mode - 'position', 'gravity_comp', 'gravity_friction', or 'impedance'
      */
     setMode(mode) {
         if (!this.connected || !this.socket) return
 
-        if (!['position', 'gravity_comp', 'impedance'].includes(mode)) {
+        if (!['position', 'gravity_comp', 'gravity_friction', 'impedance'].includes(mode)) {
             console.error('[RobotConnection] Invalid mode:', mode)
             return
         }

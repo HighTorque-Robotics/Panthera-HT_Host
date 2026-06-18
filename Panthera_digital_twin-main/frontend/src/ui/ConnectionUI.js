@@ -187,6 +187,7 @@ export class ConnectionUI {
                 <div id="mode-buttons" style="display:flex;gap:4px;">
                     <button class="mode-btn control-button active" data-mode="position" style="flex:1;padding:6px 8px;font-size:11px;border-radius:6px;">Position</button>
                     <button class="mode-btn control-button" data-mode="gravity_comp" style="flex:1;padding:6px 8px;font-size:11px;border-radius:6px;">Gravity</button>
+                    <button class="mode-btn control-button" data-mode="gravity_friction" style="flex:1;padding:6px 8px;font-size:11px;border-radius:6px;">Gra+Fri</button>
                     <button class="mode-btn control-button" data-mode="impedance" style="flex:1;padding:6px 8px;font-size:11px;border-radius:6px;">Impedance</button>
                 </div>
             </div>

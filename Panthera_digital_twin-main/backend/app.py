@@ -80,7 +80,7 @@ current_velocities = [0.0] * 6
 current_torques = [0.0] * 6
 
 # ============== CONTROL MODE SETTINGS ==============
-# Modes: 'position', 'gravity_comp', 'impedance'
+# Modes: 'position', 'gravity_comp', 'gravity_friction', 'impedance'
 control_mode = 'position'
 
 
@@ -153,8 +153,8 @@ timing_stats = {
 # External wrench (force/torque estimation)
 current_wrench = [0.0] * 6
 FT_LAMBDA = 0.05       # DLS damping for force estimation
-FT_Fc = np.array([0.05, 0.05, 0.05, 0.05, 0.01, 0.01])
-FT_Fv = np.array([0.03, 0.03, 0.03, 0.03, 0.01, 0.01])
+FT_Fc = np.array([0.10, 0.12, 0.12, 0.08, 0.03, 0.02])
+FT_Fv = np.array([0.04, 0.06, 0.06, 0.04, 0.02, 0.02])
 FT_VEL_THRESH = 0.02
 TOOL_OFFSET = np.array([0.165, 0.0, 0.0])
 
@@ -418,10 +418,28 @@ def _set_gripper_target(position, velocity=0.3):
     _gripper_target = position
     if robot is not None and not demo_mode:
         try:
-            robot.gripper_control(position, velocity, 0.5)
+            robot.gripper_control(position, velocity, 0.15)
         except Exception:
             pass
     return position
+
+
+def _release_gripper():
+    """Release gripper torque so it can be moved freely by hand."""
+    if robot is not None and not demo_mode:
+        try:
+            robot.gripper_control_MIT(0.0, 0.0, 0.0, 0.0, 0.0)
+        except Exception:
+            pass
+
+
+def _hold_gripper_impedance():
+    """Keep gripper in a light MIT hold while arm impedance is active."""
+    if robot is not None and not demo_mode:
+        try:
+            robot.gripper_control_MIT(1.0, 0.0, 0.0, 0.65, 0.06)
+        except Exception:
+            pass
 
 
 def _read_gripper_position():
@@ -489,7 +507,7 @@ def _set_control_mode(mode):
     control_mode = mode
 
     if mode == 'position':
-        if previous_mode in ['gravity_comp', 'impedance']:
+        if previous_mode in ['gravity_comp', 'gravity_friction', 'impedance']:
             _start_smooth_position_reset()
         return
 
@@ -620,6 +638,18 @@ def control_loop():
                     tor = robot.get_Gravity(q) * gravity_gain
                     tor = np.clip(tor, -tau_limit, tau_limit)
                     robot.pos_vel_tqe_kp_kd(zero_pos, zero_vel, tor.tolist(), zero_kp, zero_kd)
+                    _release_gripper()
+
+                elif mode == 'gravity_friction':
+                    # Gravity + friction compensation mode
+                    robot.send_get_motor_state_cmd()
+                    q = robot.get_current_pos() + joint_offset
+                    dq = robot.get_current_vel()
+                    tor_g = robot.get_Gravity(q) * gravity_gain
+                    tor_f = robot.get_friction_compensation(dq, FT_Fc, FT_Fv, FT_VEL_THRESH)
+                    tor = np.clip(tor_g + tor_f, -tau_limit, tau_limit)
+                    robot.pos_vel_tqe_kp_kd(zero_pos, zero_vel, tor.tolist(), zero_kp, zero_kd)
+                    _release_gripper()
 
                 elif mode == 'impedance':
                     # Impedance control mode - PD + gravity compensation
@@ -637,6 +667,7 @@ def control_loop():
                     tor = tor_pd + G * gravity_gain
                     tor = np.clip(tor, -tau_limit, tau_limit)
                     robot.pos_vel_tqe_kp_kd(zero_pos, zero_vel, tor.tolist(), zero_kp, zero_kd)
+                    _hold_gripper_impedance()
 
                 elif mode == 'trajectory':
                     # Trajectory mode - control handled by execute_trajectory_thread
@@ -1495,11 +1526,11 @@ def set_velocity():
 
 @app.route('/api/set_mode', methods=['POST'])
 def set_mode():
-    """Set control mode: 'position', 'gravity_comp', 'impedance'"""
+    """Set control mode: 'position', 'gravity_comp', 'gravity_friction', 'impedance'"""
     data = request.json
     mode = data.get('mode', 'position')
 
-    if mode not in ['position', 'gravity_comp', 'impedance']:
+    if mode not in ['position', 'gravity_comp', 'gravity_friction', 'impedance']:
         return jsonify({"success": False, "error": "Invalid mode"}), 400
 
     with target_lock:
@@ -1873,7 +1904,7 @@ def handle_set_mode(data):
     """Handle control mode change via WebSocket"""
     mode = data.get('mode', 'position')
 
-    if mode in ['position', 'gravity_comp', 'impedance']:
+    if mode in ['position', 'gravity_comp', 'gravity_friction', 'impedance']:
         with target_lock:
             _set_control_mode(mode)
 

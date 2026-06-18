@@ -952,6 +952,19 @@
             border-color: rgba(52, 199, 89, 0.3);
         }
 
+        #floating-joints-panel.gripper-only-mode .joint-control.joint-control-locked {
+            opacity: 0.35;
+            filter: grayscale(1);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        #floating-joints-panel.gripper-only-mode .joint-control.gripper-control {
+            opacity: 1;
+            filter: none;
+            pointer-events: auto;
+        }
+
         .joint-send-control {
             position: sticky;
             top: 0;
@@ -1611,7 +1624,7 @@
             color: var(--text-secondary);
         }
     </style>
-  <script type="module" crossorigin src="./assets/main-BgLFkmt_.js"></script>
+  <script type="module" crossorigin src="./assets/main-DaUrQCHl.js"></script>
 </head>
 <body>
     <div id="container">

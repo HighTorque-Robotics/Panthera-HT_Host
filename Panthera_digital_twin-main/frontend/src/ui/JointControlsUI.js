@@ -141,7 +141,8 @@ export class JointControlsUI {
 
     /**
      * Update current backend control mode.
-     * Joint commands are only allowed in Position mode.
+     * Arm joint commands are only allowed in Position mode; gripper commands stay
+     * available during Gravity and Gra+Fri modes.
      */
     setControlMode(mode) {
         this.controlMode = mode || 'position';
@@ -153,26 +154,74 @@ export class JointControlsUI {
         return this.isConnectedMode && this.controlMode !== 'position';
     }
 
+    isGripperManualMode() {
+        return this.controlMode === 'gravity_comp' || this.controlMode === 'gravity_friction';
+    }
+
+    canEditJointInCurrentMode(jointName) {
+        if (!this.isConnectedMode) return true;
+        if (this.controlMode === 'position') return true;
+        return this.isGripperName(jointName) && this.isGripperManualMode();
+    }
+
+    getJointNameByIndex(jointIndex) {
+        for (const [name, index] of this.jointIndexMap.entries()) {
+            if (index === jointIndex) return name;
+        }
+        return null;
+    }
+
+    prunePendingJointValuesForMode() {
+        if (!this.isPositionModeLocked()) return;
+
+        if (!this.isGripperManualMode()) {
+            this.pendingJointValues.clear();
+            return;
+        }
+
+        for (const [jointIndex] of this.pendingJointValues.entries()) {
+            const jointName = this.getJointNameByIndex(jointIndex);
+            if (!this.isGripperName(jointName)) {
+                this.pendingJointValues.delete(jointIndex);
+            }
+        }
+    }
+
     updatePositionModeLock() {
         const panel = document.getElementById('floating-joints-panel');
         const container = document.getElementById('joint-controls');
         const locked = this.isPositionModeLocked();
+        const gripperOnly = locked && this.isGripperManualMode();
+        const fullyLocked = locked && !gripperOnly;
 
         if (panel) {
-            panel.classList.toggle('position-mode-locked', locked);
+            panel.classList.toggle('position-mode-locked', fullyLocked);
+            panel.classList.toggle('gripper-only-mode', gripperOnly);
         }
 
         if (container) {
-            container.setAttribute('aria-disabled', locked.toString());
-            container.querySelectorAll('input, button').forEach(element => {
-                element.disabled = locked;
+            container.setAttribute('aria-disabled', fullyLocked.toString());
+            container.querySelectorAll('.joint-control').forEach(control => {
+                const slider = control.querySelector('.joint-slider');
+                const jointName = slider ? slider.getAttribute('data-joint') : null;
+                const jointLocked = !this.canEditJointInCurrentMode(jointName);
+                control.classList.toggle('joint-control-locked', jointLocked);
+                control.querySelectorAll('input').forEach(element => {
+                    element.disabled = jointLocked;
+                });
             });
         }
 
-        if (locked) {
-            this.pendingJointValues.clear();
+        if (this.velocityInput) this.velocityInput.disabled = fullyLocked;
+        if (this.velocityValue) this.velocityValue.disabled = fullyLocked;
+
+        this.prunePendingJointValuesForMode();
+
+        if (fullyLocked) {
             this.hideDragPreview();
         }
+
+        this.updateSendButtonState();
     }
 
     /**
@@ -957,11 +1006,15 @@ export class JointControlsUI {
      */
     updateSendButtonState() {
         if (!this.sendPositionsButton) return;
+        const gripperIndex = this.jointIndexMap.get('gripper');
+        const hasGripperPending = gripperIndex !== undefined && this.pendingJointValues.has(gripperIndex);
         const canSend = this.isConnectedMode &&
-            this.controlMode === 'position' &&
             this.robotConnection &&
             this.robotConnection.isConnected() &&
-            this.pendingJointValues.size > 0;
+            (
+                (this.controlMode === 'position' && this.pendingJointValues.size > 0) ||
+                (this.isGripperManualMode() && hasGripperPending)
+            );
 
         this.sendPositionsButton.disabled = !canSend;
         this.sendPositionsButton.classList.toggle('active', canSend);
@@ -972,7 +1025,9 @@ export class JointControlsUI {
      */
     sendPendingJointPositions() {
         if (!this.robotConnection || !this.robotConnection.isConnected()) return;
-        if (this.controlMode !== 'position') return;
+        const canSendArm = this.controlMode === 'position';
+        const canSendGripper = canSendArm || this.isGripperManualMode();
+        if (!canSendArm && !canSendGripper) return;
 
         const sliders = Array.from(document.querySelectorAll('.joint-slider'))
             .sort((a, b) => {
@@ -995,10 +1050,11 @@ export class JointControlsUI {
             }
         }
 
-        if (armPositions.length === 0) return;
+        if (!canSendArm && gripperPosition === null) return;
+        if (canSendArm && armPositions.length === 0 && gripperPosition === null) return;
 
         const velocity = Number.isFinite(this.commandVelocity) ? this.commandVelocity : 0.6;
-        this.robotConnection.moveAll(armPositions, velocity, gripperPosition);
+        this.robotConnection.moveAll(canSendArm ? armPositions : null, velocity, gripperPosition);
         this.pendingJointValues.clear();
         this.updateSendButtonState();
     }
@@ -1007,7 +1063,7 @@ export class JointControlsUI {
      * Handle joint value change - stages commands when connected and updates visualization.
      */
     handleJointChange(jointName, value, jointIndex, model, options = {}) {
-        if (this.isPositionModeLocked()) return;
+        if (!this.canEditJointInCurrentMode(jointName)) return;
 
         const shouldMarkPending = options.markPending === true;
 
