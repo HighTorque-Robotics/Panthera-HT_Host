@@ -944,13 +944,8 @@ def move_all():
 @app.route('/api/home', methods=['POST'])
 def go_home():
     """Move to home position"""
-    global target_positions, reset_profile_active, reset_gripper_active
-
     with target_lock:
-        reset_profile_active = False
-        reset_gripper_active = False
-        target_positions[:] = [0.0] * len(target_positions)
-        _set_gripper_target(0.0)
+        _start_smooth_position_reset()
 
     return jsonify({"success": True})
 
@@ -1814,13 +1809,8 @@ def handle_move_all(data):
 @socketio.on('home')
 def handle_home():
     """Handle home command via WebSocket"""
-    global target_positions, reset_profile_active, reset_gripper_active
-
     with target_lock:
-        reset_profile_active = False
-        reset_gripper_active = False
-        target_positions[:] = [0.0] * len(target_positions)
-        _set_gripper_target(0.0)
+        _start_smooth_position_reset()
 
 
 @socketio.on('reset_all')
@@ -2086,8 +2076,7 @@ def _process_keyboard():
 
     for cmd in cmds:
         if cmd == 'home':
-            with target_lock:
-                target_positions[:] = [0.0] * 6
+            _start_smooth_position_reset()
             impedance_target[:] = [0.0] * 6
             _gripper_target = 0.0
         elif cmd == 'print_pose':
