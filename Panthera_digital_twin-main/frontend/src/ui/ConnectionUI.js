@@ -191,16 +191,6 @@ export class ConnectionUI {
                 </div>
             </div>
 
-            <!-- Quick Controls -->
-            <div class="robot-controls" style="margin-top: 8px;">
-                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Quick Controls</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                    <button id="ctrl-home" class="control-button" style="padding:8px;font-size:12px;">Home</button>
-                    <button id="ctrl-stop" class="control-button danger" style="padding:8px;font-size:12px;">Stop</button>
-                    <button id="ctrl-setzero" class="control-button warning" style="padding:8px;font-size:12px;">Set Zero</button>
-                </div>
-            </div>
-
             <!-- Waypoints -->
             <div class="robot-controls" style="margin-top: 8px;">
                 <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
@@ -232,17 +222,6 @@ export class ConnectionUI {
                 const mode = btn.getAttribute('data-mode');
                 this.setControlMode(mode);
             });
-        });
-
-        // Quick controls
-        document.getElementById('ctrl-home')?.addEventListener('click', () => {
-            if (this.robotConnection.isConnected()) this.robotConnection.home();
-        });
-        document.getElementById('ctrl-stop')?.addEventListener('click', () => {
-            if (this.robotConnection.isConnected()) this.robotConnection.stop();
-        });
-        document.getElementById('ctrl-setzero')?.addEventListener('click', () => {
-            if (this.robotConnection.isConnected()) this.robotConnection.setZero();
         });
 
         // Waypoints

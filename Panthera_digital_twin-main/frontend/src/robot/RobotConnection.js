@@ -190,37 +190,11 @@ export class RobotConnection {
     }
 
     /**
-     * Send home command (all joints to zero)
-     */
-    home() {
-        if (!this.connected || !this.socket) return
-        this.socket.emit('home')
-    }
-
-    /**
      * Send smooth reset command (all joints to zero with backend-managed profile)
      */
     resetAll() {
         if (!this.connected || !this.socket) return
         this.socket.emit('reset_all')
-    }
-
-    /**
-     * Send stop command (hold current position)
-     */
-    stop() {
-        if (!this.connected || !this.socket) return
-        this.socket.emit('stop')
-    }
-
-    /**
-     * Send set zero command (reset encoder positions to zero)
-     * Sets current physical position as the new zero reference
-     */
-    setZero() {
-        if (!this.connected || !this.socket) return
-        console.log('[RobotConnection] Sending set zero command...')
-        this.socket.emit('set_zero')
     }
 
     /**
