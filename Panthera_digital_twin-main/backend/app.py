@@ -65,14 +65,18 @@ max_torque = [10.0, 10.0, 10.0, 10.0, 10.0, 2.0]
 reset_profile_active = False
 reset_profile_target = [0.0] * 6
 reset_profile_started_at = 0.0
+reset_profile_handoff_until = 0.0
+reset_profile_handoff_positions = [0.0] * 6
 reset_gripper_active = False
 reset_gripper_target = 0.0
 RESET_MAX_VELOCITY = 0.7
+RESET_START_VELOCITY = 0.04
 RESET_MIN_VELOCITY = 0.12
 RESET_VELOCITY_GAIN = 1.8
 RESET_VELOCITY_OFFSET = 0.06
 RESET_NEAR_ZERO_THRESHOLD = 0.01
-RESET_ACCEL_DURATION = 0.32
+RESET_ACCEL_DURATION = 0.45
+RESET_HANDOFF_DURATION = 0.18
 
 # Current state
 current_positions = [0.0] * 6
@@ -243,11 +247,8 @@ def _current_arm_positions():
 
 
 def _prepare_trajectory_from_current_pose():
-    global reset_profile_active, reset_gripper_active
-
     with target_lock:
-        reset_profile_active = False
-        reset_gripper_active = False
+        _cancel_reset_profile()
 
     current_start = _clamp_arm_positions(_current_arm_positions())
     waypoint_list = [wp['positions'] for wp in waypoints]
@@ -504,14 +505,14 @@ def _reset_velocity_from_error(error):
 
 def _smoothstep(progress):
     progress = max(0.0, min(1.0, progress))
-    return progress * progress * (3.0 - 2.0 * progress)
+    return progress * progress * progress * (progress * (progress * 6.0 - 15.0) + 10.0)
 
 
 def _reset_accel_velocity_cap(elapsed):
     if RESET_ACCEL_DURATION <= 0:
         return RESET_MAX_VELOCITY
     progress = _smoothstep(elapsed / RESET_ACCEL_DURATION)
-    return RESET_MIN_VELOCITY + (RESET_MAX_VELOCITY - RESET_MIN_VELOCITY) * progress
+    return RESET_START_VELOCITY + (RESET_MAX_VELOCITY - RESET_START_VELOCITY) * progress
 
 
 def _clamp_arm_positions(positions):
@@ -524,15 +525,30 @@ def _clamp_arm_positions(positions):
     return next_positions
 
 
-def _start_smooth_position_reset():
+def _cancel_reset_profile():
+    global reset_profile_active, reset_gripper_active, reset_profile_handoff_until
+    reset_profile_active = False
+    reset_gripper_active = False
+    reset_profile_handoff_until = 0.0
+
+
+def _start_smooth_position_reset(with_handoff=False):
     global target_positions, target_velocity, reset_profile_active, reset_profile_target, reset_profile_started_at
+    global reset_profile_handoff_until, reset_profile_handoff_positions
     global reset_gripper_active, reset_gripper_target
 
     reset_profile_target[:] = [0.0] * len(target_positions)
     target_positions[:] = reset_profile_target.copy()
     reset_gripper_target = 0.0
     reset_gripper_active = True
-    reset_profile_started_at = time.time()
+    now = time.time()
+    reset_profile_started_at = now
+    reset_profile_handoff_until = 0.0
+    reset_profile_handoff_positions[:] = current_positions[:len(reset_profile_handoff_positions)]
+    if with_handoff:
+        reset_profile_handoff_positions[:] = _clamp_arm_positions(_current_arm_positions())
+        reset_profile_handoff_until = now + RESET_HANDOFF_DURATION
+        reset_profile_started_at = reset_profile_handoff_until
     target_velocity = RESET_MAX_VELOCITY
     reset_profile_active = True
 
@@ -545,11 +561,10 @@ def _set_control_mode(mode):
 
     if mode == 'position':
         if previous_mode in ['gravity_comp', 'gravity_friction', 'impedance']:
-            _start_smooth_position_reset()
+            _start_smooth_position_reset(with_handoff=True)
         return
 
-    reset_profile_active = False
-    reset_gripper_active = False
+    _cancel_reset_profile()
 
     if mode == 'impedance':
         impedance_target = np.array(current_positions)
@@ -630,6 +645,8 @@ def control_loop():
                     reset_active = reset_profile_active
                     reset_target = reset_profile_target.copy()
                     reset_started_at = reset_profile_started_at
+                    reset_handoff_until = reset_profile_handoff_until
+                    reset_handoff_positions = reset_profile_handoff_positions.copy()
                     gripper_reset_active = reset_gripper_active
                     gripper_reset_target = reset_gripper_target
                     imp_target = impedance_target.copy()
@@ -648,13 +665,18 @@ def control_loop():
                             jc = arm_config[i]
                             targets[i] = max(jc['min'], min(jc['max'], targets[i]))
                     if reset_active:
-                        targets = reset_target[:len(targets)]
-                        errors = [abs(targets[i] - current_positions[i]) for i in range(len(targets))]
-                        max_error = max(errors) if errors else 0.0
-                        accel_cap = _reset_accel_velocity_cap(time.time() - reset_started_at)
-                        vel = [min(accel_cap, _reset_velocity_from_error(error)) for error in errors]
-                        if max_error < RESET_NEAR_ZERO_THRESHOLD:
-                            vel = [RESET_MIN_VELOCITY] * len(targets)
+                        now = time.time()
+                        if reset_handoff_until > now:
+                            targets = reset_handoff_positions[:len(targets)]
+                            vel = [0.0] * len(targets)
+                        else:
+                            targets = reset_target[:len(targets)]
+                            errors = [abs(targets[i] - current_positions[i]) for i in range(len(targets))]
+                            max_error = max(errors) if errors else 0.0
+                            accel_cap = _reset_accel_velocity_cap(now - reset_started_at)
+                            vel = [min(accel_cap, _reset_velocity_from_error(error)) for error in errors]
+                            if max_error < RESET_NEAR_ZERO_THRESHOLD:
+                                vel = [RESET_MIN_VELOCITY] * len(targets)
                     else:
                         vel = [vel_target] * len(targets)
                     robot.Joint_Pos_Vel(targets, vel, max_torque, iswait=False)
@@ -954,7 +976,7 @@ def get_status():
 @app.route('/api/move_joint', methods=['POST'])
 def move_joint():
     """Move a single joint"""
-    global target_positions, reset_profile_active, reset_gripper_active
+    global target_positions
 
     data = request.json
     joint_index = data.get('joint')
@@ -963,7 +985,7 @@ def move_joint():
     if joint_index is not None and position is not None:
         joint_index = int(joint_index)
         if _is_gripper_index(joint_index):
-            reset_gripper_active = False
+            _cancel_reset_profile()
             _set_gripper_target(position)
             return jsonify({"success": True})
 
@@ -975,8 +997,7 @@ def move_joint():
 
         if joint_index < len(target_positions):
             with target_lock:
-                reset_profile_active = False
-                reset_gripper_active = False
+                _cancel_reset_profile()
                 target_positions[joint_index] = position
 
     return jsonify({"success": True})
@@ -985,14 +1006,13 @@ def move_joint():
 @app.route('/api/move', methods=['POST'])
 def move_all():
     """Move all joints"""
-    global target_positions, target_velocity, reset_profile_active, reset_gripper_active
+    global target_positions, target_velocity
 
     data = request.json
     gripper_velocity = data.get('velocity', 0.3)
 
     with target_lock:
-        reset_profile_active = False
-        reset_gripper_active = False
+        _cancel_reset_profile()
         if 'positions' in data:
             positions = list(data['positions'])
             target_positions[:] = _clamp_arm_positions(positions)
@@ -1021,11 +1041,10 @@ def go_home():
 @app.route('/api/stop', methods=['POST'])
 def stop():
     """Stop at current position"""
-    global target_positions, reset_profile_active, reset_gripper_active
+    global target_positions
 
     with target_lock:
-        reset_profile_active = False
-        reset_gripper_active = False
+        _cancel_reset_profile()
         target_positions[:] = current_positions.copy()
 
     return jsonify({"success": True})
@@ -1825,7 +1844,7 @@ def handle_disconnect():
 @socketio.on('move_joint')
 def handle_move_joint(data):
     """Handle joint movement command via WebSocket"""
-    global target_positions, reset_profile_active, reset_gripper_active
+    global target_positions
 
     joint_index = data.get('joint')
     position = data.get('position')
@@ -1833,7 +1852,7 @@ def handle_move_joint(data):
     if joint_index is not None and position is not None:
         joint_index = int(joint_index)
         if _is_gripper_index(joint_index):
-            reset_gripper_active = False
+            _cancel_reset_profile()
             _set_gripper_target(position)
             return
 
@@ -1844,20 +1863,18 @@ def handle_move_joint(data):
 
         if joint_index < len(target_positions):
             with target_lock:
-                reset_profile_active = False
-                reset_gripper_active = False
+                _cancel_reset_profile()
                 target_positions[joint_index] = position
 
 
 @socketio.on('move_all')
 def handle_move_all(data):
     """Handle all joints movement via WebSocket"""
-    global target_positions, target_velocity, reset_profile_active, reset_gripper_active
+    global target_positions, target_velocity
 
     with target_lock:
         gripper_velocity = data.get('velocity', 0.3)
-        reset_profile_active = False
-        reset_gripper_active = False
+        _cancel_reset_profile()
         if 'positions' in data:
             positions = list(data['positions'])
             target_positions[:] = _clamp_arm_positions(positions)
@@ -1889,18 +1906,17 @@ def handle_reset_all():
 @socketio.on('stop')
 def handle_stop():
     """Handle stop command via WebSocket"""
-    global target_positions, reset_profile_active, reset_gripper_active
+    global target_positions
 
     with target_lock:
-        reset_profile_active = False
-        reset_gripper_active = False
+        _cancel_reset_profile()
         target_positions[:] = current_positions.copy()
 
 
 @socketio.on('set_zero')
 def handle_set_zero():
     """Handle set zero command via WebSocket - reset encoder positions to zero"""
-    global robot, current_positions, target_positions, reset_profile_active, reset_gripper_active
+    global robot, current_positions, target_positions
 
     if robot is None:
         emit('set_zero_result', {'success': False, 'error': 'Robot not connected'})
@@ -1913,8 +1929,7 @@ def handle_set_zero():
 
         # Reset our tracked positions to zero
         with target_lock:
-            reset_profile_active = False
-            reset_gripper_active = False
+            _cancel_reset_profile()
             current_positions[:] = [0.0] * len(current_positions)
             target_positions[:] = [0.0] * len(target_positions)
 

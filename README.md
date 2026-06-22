@@ -153,7 +153,7 @@ Demo 模式下可以放心熟悉界面；真机模式下每次发送指令前都
 2. 点击 `+ Add Current`，把当前姿态保存为一个 waypoint。
 3. 继续调整机械臂姿态，再添加新的 waypoint。
 4. 根据需要设置每个 waypoint 的执行时间。
-5. 点击 `Run Trajectory`，机械臂会按顺序经过这些 waypoint。
+5. 点击`Position`切换回位置速度控制模式，点击 `Run Trajectory`，机械臂会按顺序经过这些 waypoint。
 
 轨迹执行时后端会做平滑插值。真机模式下使用前请先确认每个 waypoint 都在安全空间内，不要让轨迹穿过桌面、夹具或人体附近。
 
