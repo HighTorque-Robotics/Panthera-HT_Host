@@ -1204,6 +1204,8 @@ def run_script():
         return jsonify({'success': False, 'error': f'Invalid script path: {script_name}'}), 403
     if not os.path.exists(script_path):
         return jsonify({'success': False, 'error': f'Script not found: {script_name}'}), 404
+    if robot is None and not demo_mode:
+        return jsonify({'success': False, 'error': 'Robot is not connected'}), 409
 
     _clear_script_output()
     _append_script_output(f"[ScriptRunner] Starting {script_name}")

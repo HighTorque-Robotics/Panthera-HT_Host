@@ -1,17 +1,21 @@
 /**
  * ScriptControlUI - Run SDK example scripts from the web UI
  */
+import { robotConnection as robotConnectionInstance } from '../robot/RobotConnection.js';
+
 const SCRIPT_PANEL_OFFSET_X = 100;
 
 export class ScriptControlUI {
-    constructor(panelManager = null) {
+    constructor(panelManager = null, robotConnection = robotConnectionInstance) {
         this.panel = null;
         this.panelManager = panelManager;
+        this.robotConnection = robotConnection;
         this.scripts = [];
         this.running = false;
         this.currentScript = null;
         this.selectedScript = '';
         this.outputPollTimer = null;
+        this.connectionPollTimer = null;
         this.scriptsDir = '';
     }
 
@@ -19,6 +23,7 @@ export class ScriptControlUI {
         this.createPanel();
         this.createTopBarButton();
         this.loadScripts();
+        this.startConnectionPolling();
     }
 
     /**
@@ -192,7 +197,7 @@ export class ScriptControlUI {
     }
 
     async runScript() {
-        if (!this.selectedScript) return;
+        if (!this.isRobotConnected() || !this.selectedScript) return;
 
         const script = this.selectedScript;
         try {
@@ -215,6 +220,8 @@ export class ScriptControlUI {
     }
 
     async stopScript() {
+        if (!this.isRobotConnected()) return;
+
         try {
             const resp = await fetch('/api/scripts/stop', { method: 'POST' });
             const data = await resp.json();
@@ -257,15 +264,20 @@ export class ScriptControlUI {
         const runBtn = this.panel?.querySelector('#script-run-btn');
         const stopBtn = this.panel?.querySelector('#script-stop-btn');
         const list = this.panel?.querySelector('#script-list');
+        const connected = this.isRobotConnected();
 
-        if (runBtn) runBtn.disabled = this.running || !this.selectedScript;
-        if (stopBtn) stopBtn.disabled = !this.running;
+        if (runBtn) runBtn.disabled = !connected || this.running || !this.selectedScript;
+        if (stopBtn) stopBtn.disabled = !connected || !this.running;
         if (list) {
             list.classList.toggle('disabled', this.running);
             list.querySelectorAll('.script-list-item').forEach(item => {
                 item.disabled = this.running;
             });
         }
+    }
+
+    isRobotConnected() {
+        return Boolean(this.robotConnection?.isConnected?.());
     }
 
     async updateOutput() {
@@ -310,6 +322,20 @@ export class ScriptControlUI {
         if (!this.outputPollTimer) return;
         clearInterval(this.outputPollTimer);
         this.outputPollTimer = null;
+    }
+
+    startConnectionPolling() {
+        if (this.connectionPollTimer) return;
+
+        let lastConnected = this.isRobotConnected();
+        this.connectionPollTimer = setInterval(() => {
+            const connected = this.isRobotConnected();
+            if (connected !== lastConnected) {
+                lastConnected = connected;
+                this.updateButtons();
+            }
+        }, 500);
+        this.updateButtons();
     }
 
     syncOutputPolling() {

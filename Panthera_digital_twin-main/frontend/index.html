@@ -822,76 +822,6 @@
             font-weight: 600;
         }
 
-        /* Impedance Kp sliders */
-        .kp-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 3px 0;
-        }
-
-        .kp-label {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-weight: 500;
-            width: 28px;
-            flex-shrink: 0;
-        }
-
-        .kp-slider {
-            flex: 1;
-            -webkit-appearance: none;
-            appearance: none;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.12);
-            border-radius: 2px;
-            outline: none;
-        }
-
-        .kp-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #0a84ff;
-            cursor: pointer;
-        }
-
-        .kp-value-input {
-            width: 44px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 4px;
-            color: var(--text-primary);
-            font-size: 11px;
-            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-            padding: 2px 4px;
-            text-align: right;
-            flex-shrink: 0;
-        }
-
-        .kp-value-input:focus {
-            border-color: #0a84ff;
-            outline: none;
-        }
-
-        .kp-reset-btn {
-            width: 100%;
-            padding: 5px 0;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 6px;
-            color: var(--text-secondary);
-            font-size: 11px;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-
-        .kp-reset-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
-            color: var(--text-primary);
-        }
-
         /* Joints panel */
         #floating-joints-panel {
             top: 160px;
@@ -1795,43 +1725,6 @@
                                 <span class="fk-value" id="fk-torque-mag">0.00</span>
                             </div>
                         </div>
-                        <div class="fk-section">
-                            <div class="fk-section-title">Impedance Kp (Position)</div>
-                            <div class="kp-row">
-                                <span class="kp-label">X</span>
-                                <input type="range" class="kp-slider" id="kp-pos-x" min="0" max="200" step="1" value="20">
-                                <input type="number" class="kp-value-input" id="kp-pos-x-val" min="0" max="200" step="1" value="20">
-                            </div>
-                            <div class="kp-row">
-                                <span class="kp-label">Y</span>
-                                <input type="range" class="kp-slider" id="kp-pos-y" min="0" max="200" step="1" value="20">
-                                <input type="number" class="kp-value-input" id="kp-pos-y-val" min="0" max="200" step="1" value="20">
-                            </div>
-                            <div class="kp-row">
-                                <span class="kp-label">Z</span>
-                                <input type="range" class="kp-slider" id="kp-pos-z" min="0" max="200" step="1" value="60">
-                                <input type="number" class="kp-value-input" id="kp-pos-z-val" min="0" max="200" step="1" value="60">
-                            </div>
-                        </div>
-                        <div class="fk-section">
-                            <div class="fk-section-title">Impedance Kp (Rotation)</div>
-                            <div class="kp-row">
-                                <span class="kp-label">Rx</span>
-                                <input type="range" class="kp-slider" id="kp-rot-x" min="0" max="200" step="1" value="50">
-                                <input type="number" class="kp-value-input" id="kp-rot-x-val" min="0" max="200" step="1" value="50">
-                            </div>
-                            <div class="kp-row">
-                                <span class="kp-label">Ry</span>
-                                <input type="range" class="kp-slider" id="kp-rot-y" min="0" max="200" step="1" value="50">
-                                <input type="number" class="kp-value-input" id="kp-rot-y-val" min="0" max="200" step="1" value="50">
-                            </div>
-                            <div class="kp-row">
-                                <span class="kp-label">Rz</span>
-                                <input type="range" class="kp-slider" id="kp-rot-z" min="0" max="200" step="1" value="40">
-                                <input type="number" class="kp-value-input" id="kp-rot-z-val" min="0" max="200" step="1" value="40">
-                            </div>
-                        </div>
-                        <button class="kp-reset-btn" id="kp-reset-btn">Reset Kp</button>
                         <div class="fk-status">
                             <span class="fk-status-dot disconnected"></span>
                             <span class="fk-status-text">Not connected</span>

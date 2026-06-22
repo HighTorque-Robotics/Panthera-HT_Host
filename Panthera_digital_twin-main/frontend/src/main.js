@@ -165,9 +165,6 @@ class DigitalTwinApp {
             // Setup robot connection callbacks
             this.setupRobotConnectionCallbacks();
 
-            // Setup impedance Kp controls
-            this.setupImpedanceKpControls();
-
             // Setup model tree panel
             this.setupModelTreePanel();
 
@@ -239,15 +236,6 @@ class DigitalTwinApp {
             // Update FK panel status
             this.updateFKStatus(true, config.demo_mode ? 'Demo mode' : 'Connected');
 
-            // Sync impedance Kp sliders from backend
-            if (config.impedance_kp) {
-                this.updateKpSliders(config.impedance_kp);
-            }
-
-            // Listen for Kp reset response
-            this.robotConnection.socket.on('impedance_kp_reset', (data) => {
-                if (data.kp) this.updateKpSliders(data.kp);
-            });
         };
 
         // On disconnection
@@ -589,75 +577,6 @@ class DigitalTwinApp {
         if (statusTextEl) {
             statusTextEl.textContent = statusText || (connected ? 'Connected' : 'Not connected');
         }
-    }
-
-    // ========== Impedance Kp Controls ==========
-
-    setupImpedanceKpControls() {
-        const KP_IDS = [
-            'kp-pos-x', 'kp-pos-y', 'kp-pos-z',
-            'kp-rot-x', 'kp-rot-y', 'kp-rot-z'
-        ];
-
-        KP_IDS.forEach((id) => {
-            const slider = document.getElementById(id);
-            const input = document.getElementById(id + '-val');
-            if (!slider || !input) return;
-
-            // Slider → sync input + send
-            slider.addEventListener('input', () => {
-                input.value = slider.value;
-                this._sendKpValues();
-            });
-
-            // Input → sync slider + send
-            input.addEventListener('change', () => {
-                const val = Math.max(0, Math.min(200, parseFloat(input.value) || 0));
-                input.value = val;
-                slider.value = val;
-                this._sendKpValues();
-            });
-        });
-
-        // Reset button
-        const resetBtn = document.getElementById('kp-reset-btn');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', () => {
-                if (!this.robotConnection || !this.robotConnection.isConnected()) return;
-                this.robotConnection.socket.emit('reset_impedance_kp', {});
-            });
-        }
-    }
-
-    _sendKpValues() {
-        if (!this.robotConnection || !this.robotConnection.isConnected()) return;
-
-        const kp = [
-            parseFloat(document.getElementById('kp-pos-x')?.value) || 0,
-            parseFloat(document.getElementById('kp-pos-y')?.value) || 0,
-            parseFloat(document.getElementById('kp-pos-z')?.value) || 0,
-            parseFloat(document.getElementById('kp-rot-x')?.value) || 0,
-            parseFloat(document.getElementById('kp-rot-y')?.value) || 0,
-            parseFloat(document.getElementById('kp-rot-z')?.value) || 0,
-        ];
-
-        this.robotConnection.socket.emit('set_impedance_kp', { kp });
-    }
-
-    updateKpSliders(kp) {
-        if (!kp || kp.length < 6) return;
-
-        const KP_IDS = [
-            'kp-pos-x', 'kp-pos-y', 'kp-pos-z',
-            'kp-rot-x', 'kp-rot-y', 'kp-rot-z'
-        ];
-
-        KP_IDS.forEach((id, index) => {
-            const slider = document.getElementById(id);
-            const input = document.getElementById(id + '-val');
-            if (slider) slider.value = kp[index];
-            if (input) input.value = Math.round(kp[index]);
-        });
     }
 
     // ========== External Wrench Visualization ==========
