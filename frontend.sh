@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ENV_NAME="Panthera_host"
+ENV_NAME="${PANTHERA_ENV_NAME:-panthera}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRONTEND_DIR="${ROOT_DIR}/Panthera_digital_twin-main/frontend"
 HOST="0.0.0.0"

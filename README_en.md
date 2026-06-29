@@ -11,9 +11,7 @@ This is the host-side project for the Panthera-HT robotic arm. It includes SDK e
 - Run SDK example scripts from `panthera_python/scripts/` directly from the web page.
 - Use Demo simulation mode to develop and test the frontend/backend UI without a real robot.
 
-For first-time use, start with **Demo mode**. It does not require a real robot connection.
-
-## Quick Start
+## Quick Launch
 
 ### 1. Prepare The Environment
 
@@ -26,25 +24,43 @@ chmod +x install.sh backend.sh frontend.sh
 ./install.sh
 ```
 
-The install script creates this conda environment:
+The install script first looks for this existing conda environment:
 
 ```text
-Panthera_host
+panthera
 ```
 
-It also installs the dependencies required by the backend, frontend, and Panthera Python SDK.
+If the environment does not exist, the script creates `panthera` automatically. It then installs the dependencies required by the backend, frontend, and Panthera Python SDK.
 
-### 2. Start The Backend
+### 2. Check The Real Robot Connection
 
-Open a new terminal and start Demo mode first:
+Before starting live mode, confirm that:
+
+- The robot workspace is clear of people and obstacles.
+- Power, serial/CAN devices, and hardware connections are ready.
+- The correct robot configuration file is being used.
+
+### 3. Start The Backend
+
+Open a new terminal and start the live backend:
+
+```bash
+./backend.sh
+```
+
+This is equivalent to:
+
+```bash
+./backend.sh --live --config ../../panthera_python/robot_param/Follower.yaml --port 5000
+```
+
+If no real robot is connected and you only want to learn the UI or debug the frontend/backend, start Demo mode instead:
 
 ```bash
 ./backend.sh --demo
 ```
 
-Demo mode does not connect to the real robot. It is suitable for frontend development, UI familiarization, and workflow debugging.
-
-### 3. Start The Frontend
+### 4. Start The Frontend
 
 Open another terminal:
 
@@ -59,32 +75,6 @@ http://localhost:3000
 ```
 
 Once the page is loaded, you can view robot state, control joints, and run example scripts from the browser.
-
-## Connecting To The Real Robot
-
-Live mode controls the real robot. Before running it, confirm that:
-
-- The robot workspace is clear of people and obstacles.
-- Power, serial/CAN devices, and hardware connections are ready.
-- The correct robot configuration file is being used.
-
-Start the live backend:
-
-```bash
-./backend.sh
-```
-
-This is equivalent to:
-
-```bash
-./backend.sh --live --config ../../panthera_python/robot_param/Follower.yaml --port 5000
-```
-
-If no real robot is connected, use:
-
-```bash
-./backend.sh --demo
-```
 
 ## User Guide
 
@@ -167,8 +157,6 @@ The `Scripts` panel reads:
 panthera_python/scripts/
 ```
 
-Only `.py` files directly under that directory are shown. Files inside subdirectories are not listed.
-
 Workflow:
 
 1. Select a script in `Select Script`.
@@ -243,8 +231,8 @@ The web page `Scripts` panel reads one-level `.py` files under `panthera_python/
 cd Panthera_digital_twin-main/frontend
 npm run build
 
-# Remove conda environment
-conda env remove -n Panthera_host
+# Remove the conda environment created for this project
+conda env remove -n panthera
 ```
 
 ## FAQ
@@ -279,10 +267,12 @@ Run:
 ./install.sh
 ```
 
-To reinstall the environment, remove it first:
+To reinstall dependencies, run `./install.sh` again.
+
+If `panthera` is dedicated to this project, you can also remove it first:
 
 ```bash
-conda env remove -n Panthera_host
+conda env remove -n panthera
 ```
 
 Then run `./install.sh` again.

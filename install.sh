@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ENV_NAME="Panthera_host"
+ENV_NAME="${PANTHERA_ENV_NAME:-panthera}"
 PYTHON_VERSION="3.10"
 INSTALL_SYSTEM_DEPS="${INSTALL_SYSTEM_DEPS:-1}"
 INSTALL_YAML_CPP_06="${INSTALL_YAML_CPP_06:-0}"
@@ -137,7 +137,7 @@ setup_serial_permissions() {
 
 create_or_update_env() {
   if conda env list | awk '{print $1}' | grep -qx "${ENV_NAME}"; then
-    log "Conda 环境 ${ENV_NAME} 已存在，跳过创建。"
+    log "检测到已有 Conda 环境 ${ENV_NAME}，将在该环境中安装/更新依赖。"
   else
     log "创建 Conda 环境 ${ENV_NAME}，Python ${PYTHON_VERSION}。"
     conda create -y -n "${ENV_NAME}" "python=${PYTHON_VERSION}" pip
@@ -145,6 +145,10 @@ create_or_update_env() {
 
   log "安装 Conda 侧依赖：nodejs、cmake、pkg-config。"
   conda install -y -n "${ENV_NAME}" -c conda-forge nodejs cmake pkg-config
+}
+
+python_cp_tag() {
+  conda run -n "${ENV_NAME}" python -c 'import sys; print(f"cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}")'
 }
 
 install_python_dependencies() {
@@ -164,7 +168,7 @@ install_python_dependencies() {
 detect_motor_wheel() {
   local arch cp_tag wheel
   arch="$(uname -m)"
-  cp_tag="cp310-cp310"
+  cp_tag="$(python_cp_tag | tail -n 1)"
 
   case "${arch}" in
     x86_64)
@@ -178,7 +182,7 @@ detect_motor_wheel() {
       ;;
   esac
 
-  [[ -f "${wheel}" ]] || fail "未找到匹配的电机 SDK wheel：${wheel}"
+  [[ -f "${wheel}" ]] || fail "未找到匹配 Python ${cp_tag} / 架构 ${arch} 的电机 SDK wheel：${wheel}"
   printf '%s\n' "${wheel}"
 }
 
@@ -199,7 +203,7 @@ install_frontend_dependencies() {
 
 verify_installation() {
   log "验证 Python 依赖。"
-  conda run -n "${ENV_NAME}" python - <<'PY'
+  conda run -n "${ENV_NAME}" python -c '
 import importlib
 
 required = [
@@ -224,7 +228,7 @@ try:
 except Exception as exc:
     print(f"WARN: hightorque_robot 导入失败：{exc}")
     print("      Demo 模式仍可尝试启动；真机模式需要修复该 SDK 的系统库依赖。")
-PY
+'
 
   log "验证 Node/npm。"
   conda run -n "${ENV_NAME}" node --version
@@ -235,6 +239,10 @@ print_next_steps() {
   cat <<EOF
 
 安装完成。
+
+Conda 环境：
+
+  ${ENV_NAME}
 
 使用方式：
 
