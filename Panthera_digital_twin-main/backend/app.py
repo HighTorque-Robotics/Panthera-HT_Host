@@ -542,15 +542,18 @@ def _cancel_reset_profile():
     reset_profile_handoff_until = 0.0
 
 
-def _start_smooth_position_reset(with_handoff=False):
+def _start_smooth_position_move(positions, gripper_target=None, with_handoff=False):
     global target_positions, target_velocity, reset_profile_active, reset_profile_target, reset_profile_started_at
     global reset_profile_handoff_until, reset_profile_handoff_positions
     global reset_gripper_active, reset_gripper_target
 
-    reset_profile_target[:] = [0.0] * len(target_positions)
+    reset_profile_target[:] = _clamp_arm_positions(positions)
     target_positions[:] = reset_profile_target.copy()
-    reset_gripper_target = 0.0
-    reset_gripper_active = True
+    if gripper_target is not None:
+        reset_gripper_target = _clamp_gripper_position(gripper_target)
+        reset_gripper_active = True
+    else:
+        reset_gripper_active = False
     now = time.time()
     reset_profile_started_at = now
     reset_profile_handoff_until = 0.0
@@ -561,6 +564,14 @@ def _start_smooth_position_reset(with_handoff=False):
         reset_profile_started_at = reset_profile_handoff_until
     target_velocity = RESET_MAX_VELOCITY
     reset_profile_active = True
+
+
+def _start_smooth_position_reset(with_handoff=False):
+    _start_smooth_position_move(
+        [0.0] * len(target_positions),
+        gripper_target=0.0,
+        with_handoff=with_handoff
+    )
 
 
 def _hold_current_position_target():
@@ -1767,8 +1778,6 @@ def clear_waypoints():
 @app.route('/api/waypoints/go_to', methods=['POST'])
 def go_to_waypoint():
     """Move robot to a specific waypoint"""
-    global target_positions
-
     data = request.json
     index = data.get('index')
 
@@ -1777,8 +1786,15 @@ def go_to_waypoint():
 
     positions = waypoints[index]['positions']
 
+    switched_to_position = False
     with target_lock:
-        target_positions[:] = positions
+        switched_to_position = control_mode in ['gravity_comp', 'gravity_friction']
+        if switched_to_position:
+            _set_control_mode('position')
+        _start_smooth_position_move(positions, with_handoff=switched_to_position)
+
+    if switched_to_position:
+        socketio.emit('mode_changed', {'mode': 'position'})
 
     return jsonify({"success": True, "target": positions})
 
@@ -2114,16 +2130,21 @@ def handle_stop_trajectory():
 @socketio.on('go_to_waypoint')
 def handle_go_to_waypoint(data):
     """Move to waypoint via WebSocket"""
-    global target_positions
-
     index = data.get('index')
     if index is None or index < 0 or index >= len(waypoints):
         return
 
     positions = waypoints[index]['positions']
 
+    switched_to_position = False
     with target_lock:
-        target_positions[:] = positions
+        switched_to_position = control_mode in ['gravity_comp', 'gravity_friction']
+        if switched_to_position:
+            _set_control_mode('position')
+        _start_smooth_position_move(positions, with_handoff=switched_to_position)
+
+    if switched_to_position:
+        socketio.emit('mode_changed', {'mode': 'position'})
 
 
 # ============== Keyboard Control ==============

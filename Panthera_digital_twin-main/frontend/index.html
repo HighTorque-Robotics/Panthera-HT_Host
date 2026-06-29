@@ -865,6 +865,44 @@
             color: rgba(29, 29, 31, 0.72);
         }
 
+        #waypoints-section {
+            position: relative;
+        }
+
+        #waypoints-section.waypoints-locked .waypoints-content {
+            opacity: 0.38;
+            filter: grayscale(1);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        #waypoints-section .waypoints-lock-overlay {
+            display: none;
+        }
+
+        #waypoints-section.waypoints-locked .waypoints-lock-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: rgba(120, 120, 120, 0.28);
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            backdrop-filter: grayscale(1) blur(1px);
+            -webkit-backdrop-filter: grayscale(1) blur(1px);
+            pointer-events: all;
+        }
+
+        [data-theme="light"] #waypoints-section.waypoints-locked .waypoints-lock-overlay {
+            background: rgba(180, 180, 180, 0.36);
+            color: rgba(29, 29, 31, 0.72);
+        }
+
         #joint-controls {
             display: flex;
             flex-direction: column;

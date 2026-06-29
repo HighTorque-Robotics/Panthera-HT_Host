@@ -193,26 +193,34 @@ export class ConnectionUI {
             </div>
 
             <!-- Waypoints -->
-            <div class="robot-controls" style="margin-top: 8px;">
-                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
-                    Waypoints <span id="wp-count" style="color:var(--text-tertiary);font-weight:400;">(0/6)</span>
+            <div id="waypoints-section" class="robot-controls" style="margin-top: 8px;">
+                <div class="waypoints-content">
+                    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                        Waypoints <span id="wp-count" style="color:var(--text-tertiary);font-weight:400;">(0/6)</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+                        <button id="wp-add" class="control-button" style="padding:8px;font-size:12px;">+ Add Current</button>
+                        <button id="wp-clear" class="control-button danger" style="padding:8px;font-size:12px;">Clear</button>
+                    </div>
+                    <div id="wp-list" style="max-height:120px;overflow-y:auto;margin-bottom:6px;font-size:11px;color:var(--text-tertiary);">
+                        <div style="text-align:center;padding:8px;">No waypoints</div>
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <button id="wp-go-first" class="control-button" style="width:100%;padding:8px;font-size:12px;">Move to Point 1</button>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                        <button id="wp-run" class="control-button" style="padding:8px;font-size:12px;">▶ Run Trajectory</button>
+                        <button id="wp-stop" class="control-button danger" style="padding:8px;font-size:12px;" disabled>■ Stop</button>
+                    </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
-                    <button id="wp-add" class="control-button" style="padding:8px;font-size:12px;">+ Add Current</button>
-                    <button id="wp-clear" class="control-button danger" style="padding:8px;font-size:12px;">Clear</button>
-                </div>
-                <div id="wp-list" style="max-height:120px;overflow-y:auto;margin-bottom:6px;font-size:11px;color:var(--text-tertiary);">
-                    <div style="text-align:center;padding:8px;">No waypoints</div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                    <button id="wp-run" class="control-button" style="padding:8px;font-size:12px;">▶ Run Trajectory</button>
-                    <button id="wp-stop" class="control-button danger" style="padding:8px;font-size:12px;" disabled>■ Stop</button>
-                </div>
+                <div class="waypoints-lock-overlay">Disabled in impedance</div>
             </div>
         `;
 
         content.appendChild(sections);
         this.bindControlEvents();
+        this.updateWaypointLockState();
+        this.updateWaypointButtonState();
     }
 
     /** Bind control section button events */
@@ -228,6 +236,7 @@ export class ConnectionUI {
         // Waypoints
         document.getElementById('wp-add')?.addEventListener('click', () => this.addWaypoint());
         document.getElementById('wp-clear')?.addEventListener('click', () => this.clearWaypoints());
+        document.getElementById('wp-go-first')?.addEventListener('click', () => this.goToFirstWaypoint());
         document.getElementById('wp-run')?.addEventListener('click', () => this.runTrajectory());
         document.getElementById('wp-stop')?.addEventListener('click', () => this.stopTrajectory());
     }
@@ -240,11 +249,39 @@ export class ConnectionUI {
         document.querySelectorAll('.mode-btn').forEach(b => {
             b.classList.toggle('active', b.getAttribute('data-mode') === mode);
         });
+        this.updateWaypointLockState();
+        this.updateWaypointButtonState();
         if (this.onModeChanged) this.onModeChanged(mode);
+    }
+
+    isWaypointLocked() {
+        return this.currentMode === 'impedance';
+    }
+
+    updateWaypointLockState() {
+        const section = document.getElementById('waypoints-section');
+        if (section) section.classList.toggle('waypoints-locked', this.isWaypointLocked());
+    }
+
+    updateWaypointButtonState() {
+        const connected = Boolean(this.robotConnection?.isConnected?.());
+        const locked = this.isWaypointLocked();
+        const addBtn = document.getElementById('wp-add');
+        const clearBtn = document.getElementById('wp-clear');
+        const goFirstBtn = document.getElementById('wp-go-first');
+        const runBtn = document.getElementById('wp-run');
+        const stopBtn = document.getElementById('wp-stop');
+
+        if (addBtn) addBtn.disabled = locked || !connected || this.waypoints.length >= this.maxWaypoints;
+        if (clearBtn) clearBtn.disabled = locked || !connected || this.waypoints.length === 0;
+        if (goFirstBtn) goFirstBtn.disabled = locked || !connected || this.trajectoryRunning || this.waypoints.length < 1;
+        if (runBtn) runBtn.disabled = locked || !connected || this.trajectoryRunning || this.waypoints.length < 2;
+        if (stopBtn) stopBtn.disabled = locked || !connected || !this.trajectoryRunning;
     }
 
     /** Add current robot position as waypoint */
     addWaypoint() {
+        if (this.isWaypointLocked()) return;
         if (!this.robotConnection.isConnected()) return;
         const state = this.robotConnection.getState();
         if (!state || !state.positions || state.positions.length === 0) return;
@@ -266,26 +303,37 @@ export class ConnectionUI {
 
     /** Clear all waypoints */
     clearWaypoints() {
+        if (this.isWaypointLocked() || !this.robotConnection.isConnected()) return;
         this.waypoints = [];
         this.robotConnection.socket.emit('clear_waypoints');
         this.updateWaypointUI();
     }
 
+    /** Move to the first waypoint */
+    goToFirstWaypoint() {
+        if (this.isWaypointLocked() || !this.robotConnection.isConnected()) return;
+        if (this.trajectoryRunning || this.waypoints.length < 1) return;
+        this.robotConnection.socket.emit('go_to_waypoint', { index: 0 });
+    }
+
     /** Run trajectory */
     runTrajectory() {
+        if (this.isWaypointLocked() || !this.robotConnection.isConnected()) return;
         if (this.waypoints.length < 2) return;
+        if (this.currentMode === 'gravity_comp' || this.currentMode === 'gravity_friction') {
+            this.setControlMode('position');
+        }
         this.trajectoryRunning = true;
         this.robotConnection.socket.emit('run_trajectory', { control_rate: 100 });
-        document.getElementById('wp-run').disabled = true;
-        document.getElementById('wp-stop').disabled = false;
+        this.updateWaypointButtonState();
     }
 
     /** Stop trajectory */
     stopTrajectory() {
+        if (this.isWaypointLocked() || !this.robotConnection.isConnected()) return;
         this.trajectoryRunning = false;
         this.robotConnection.socket.emit('stop_trajectory');
-        document.getElementById('wp-run').disabled = false;
-        document.getElementById('wp-stop').disabled = true;
+        this.updateWaypointButtonState();
     }
 
     /** Update waypoint list UI */
@@ -297,6 +345,7 @@ export class ConnectionUI {
 
         if (this.waypoints.length === 0) {
             list.innerHTML = '<div style="text-align:center;padding:8px;">No waypoints</div>';
+            this.updateWaypointButtonState();
             return;
         }
 
@@ -309,6 +358,7 @@ export class ConnectionUI {
                 <span style="color:var(--text-tertiary);">${dur}s</span>
             </div>`;
         }).join('');
+        this.updateWaypointButtonState();
     }
 
     /**
@@ -318,12 +368,16 @@ export class ConnectionUI {
         this.robotConnection.onConnected = () => {
             this.updateConnectionStatus(true);
             this.bindSocketEvents();
+            this.updateWaypointLockState();
+            this.updateWaypointButtonState();
         };
 
         this.robotConnection.onDisconnected = () => {
             this.updateConnectionStatus(false);
             this.waypoints = [];
             this.trajectoryRunning = false;
+            this.updateWaypointLockState();
+            this.updateWaypointButtonState();
             if (this.onDisconnect) this.onDisconnect();
         };
 
@@ -334,6 +388,8 @@ export class ConnectionUI {
                 document.querySelectorAll('.mode-btn').forEach(b => {
                     b.classList.toggle('active', b.getAttribute('data-mode') === config.control_mode);
                 });
+                this.updateWaypointLockState();
+                this.updateWaypointButtonState();
                 if (this.onModeChanged) this.onModeChanged(config.control_mode);
             }
             if (this.onConnect) this.onConnect(config);
@@ -349,6 +405,8 @@ export class ConnectionUI {
             document.querySelectorAll('.mode-btn').forEach(b => {
                 b.classList.toggle('active', b.getAttribute('data-mode') === mode);
             });
+            this.updateWaypointLockState();
+            this.updateWaypointButtonState();
             if (this.onModeChanged) this.onModeChanged(mode);
         };
     }
@@ -371,18 +429,12 @@ export class ConnectionUI {
 
         sock.on('trajectory_complete', () => {
             this.trajectoryRunning = false;
-            const runBtn = document.getElementById('wp-run');
-            const stopBtn = document.getElementById('wp-stop');
-            if (runBtn) runBtn.disabled = false;
-            if (stopBtn) stopBtn.disabled = true;
+            this.updateWaypointButtonState();
         });
 
         sock.on('trajectory_error', (data) => {
             this.trajectoryRunning = false;
-            const runBtn = document.getElementById('wp-run');
-            const stopBtn = document.getElementById('wp-stop');
-            if (runBtn) runBtn.disabled = false;
-            if (stopBtn) stopBtn.disabled = true;
+            this.updateWaypointButtonState();
             if (data.error) this.showError(data.error);
         });
     }

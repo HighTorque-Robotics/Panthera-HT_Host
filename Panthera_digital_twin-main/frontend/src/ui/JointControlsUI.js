@@ -141,8 +141,7 @@ export class JointControlsUI {
 
     /**
      * Update current backend control mode.
-     * Arm joint commands are only allowed in Position mode; gripper commands stay
-     * available during Gravity and Gra+Fri modes.
+     * Joint commands are only allowed in Position mode.
      */
     setControlMode(mode) {
         this.controlMode = mode || 'position';
@@ -155,7 +154,8 @@ export class JointControlsUI {
     }
 
     isGripperManualMode() {
-        return this.controlMode === 'gravity_comp' || this.controlMode === 'gravity_friction';
+        // Non-position modes intentionally lock the full Joints panel.
+        return false;
     }
 
     canEditJointInCurrentMode(jointName) {
