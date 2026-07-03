@@ -2,7 +2,7 @@
 
 [![中文](https://img.shields.io/badge/lang-简体中文-red.svg)](README.md#中文)[![en](https://img.shields.io/badge/lang-English-blue.svg)](README_en.md#english)
 
-![Panthera-HT Host UI](images/1.png)
+![Panthera-HT Host](images/1.png)
 
 这是 Panthera-HT 机械臂的上位机项目。包含真机控制SDK示例和前后端。项目主要用于：
 
@@ -104,7 +104,22 @@ http://localhost:5000
 
 如果页面没有数据变化，先确认后端终端没有报错，并刷新浏览器页面。
 
-### 2. 使用 Joints 面板控制关节
+
+### 2. 使用 3D 视图观察机械臂
+
+页面中央是机械臂 3D 模型：
+
+- 模型姿态会根据后端关节状态实时更新。
+- 红色小点表示末端执行器位置。
+- 鼠标左键拖动可以旋转视角，滚轮可以缩放视角。
+
+如果更新了 URDF 或模型文件，需要重启后端并刷新页面。
+
+### 3. 使用 Joints 面板控制关节
+
+<p align="center">
+  <img src="images/2.png" alt="Panthera-HT Host" width="90%">
+</p>
 
 在 `Joints` 面板中可以查看和调整 6 个关节的位置。
 
@@ -120,13 +135,17 @@ http://localhost:5000
 
 Demo 模式下可以放心熟悉界面；真机模式下每次发送指令前都要确认机械臂周围安全。
 
-### 3. 使用 CONTROL MODE 切换控制模式
+### 4. 使用 CONTROL MODE 切换控制模式
+
+<p align="center">
+  <img src="images/3.png" alt="Panthera-HT Host" width="90%">
+</p>
 
 `Robot Connection` 浮窗中的 `CONTROL MODE` 用来切换后端控制方式。
 
-常用模式：
+预设模式：
 
-- `Position`：位置控制模式。`Joints` 面板中的关节位置和 `Send Position` 主要在这个模式下使用。
+- `Position`：位置控制模式。`Joints` 面板中的关节位置和 `Send Position` 需要在这个模式下使用。
 - `Gravity`：重力补偿模式。机械臂进入可手动拖动的浮动状态，适合手动示教。
 - `Gra+Fri`：重力 + 摩擦力补偿模式。在 `Gravity` 的基础上增加摩擦力补偿，手动拖动时阻力感会不同。
 - `Impedance`：阻抗控制模式。机械臂会围绕当前目标位置做柔顺控制，可用于外力交互和力方向反馈观察。
@@ -137,17 +156,12 @@ Demo 模式下可以放心熟悉界面；真机模式下每次发送指令前都
 - `Gravity` 和 `Gra+Fri` 模式下，夹爪会释放，方便手动移动。
 - `Impedance` 模式下，夹爪会使用轻量 MIT 保持控制。
 
-### 4. 使用 3D 视图观察机械臂
-
-页面中央是机械臂 3D 模型：
-
-- 模型姿态会根据后端关节状态实时更新。
-- 红色小点表示末端执行器位置。
-- 鼠标左键拖动可以旋转视角，滚轮可以缩放视角。
-
-如果更新了 URDF 或模型文件，需要重启后端并刷新页面。
 
 ### 5. 使用 WAYPOINTS 规划轨迹
+
+<p align="center">
+  <img src="images/4.png" alt="Panthera-HT Host" width="90%">
+</p>
 
 `Waypoints` 区域用于记录多个关节姿态，并让机械臂按顺序执行轨迹。
 
@@ -162,6 +176,10 @@ Demo 模式下可以放心熟悉界面；真机模式下每次发送指令前都
 轨迹执行时后端会做平滑插值。真机模式下使用前请先确认每个 waypoint 都在安全空间内，不要让轨迹穿过桌面、夹具或人体附近。
 
 ### 6. 运行 SDK 示例脚本
+
+<p align="center">
+  <img src="images/5.png" alt="Panthera-HT Host" width="75%">
+</p>
 
 `Scripts` 面板会读取：
 

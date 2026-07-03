@@ -2,7 +2,7 @@
 
 [![en](https://img.shields.io/badge/lang-English-blue.svg)](README_en.md#english)[![中文](https://img.shields.io/badge/lang-简体中文-red.svg)](README.md#中文)
 
-![Panthera-HT Host UI](images/1.png)
+![Panthera-HT Host](images/1.png)
 
 This is the host-side project for the Panthera-HT robotic arm. It includes SDK examples for real robot control, a backend service, and a browser frontend. The project is mainly used to:
 
@@ -46,10 +46,11 @@ Before starting live mode, confirm that:
 - The robot workspace is clear of people and obstacles.
 - Power, serial/CAN devices, and hardware connections are ready.
 - The correct robot configuration file is being used.
+- `0_robot_get_state.py` can read robot state correctly in the `panthera` environment.
 
 ### 3. Start The Backend
 
-Open a new terminal and start the live backend:
+Open a new terminal and start the live backend. After startup, the robot joints will be locked:
 
 ```bash
 ./backend.sh
@@ -103,9 +104,25 @@ Check the top or side status information first:
 
 If the page state does not update, check that the backend terminal has no errors, then refresh the browser page.
 
-### 2. Use The Joints Panel
+### 2. Observe The Robot In The 3D View
+
+The center of the page shows the robot 3D model:
+
+- The model pose updates in real time according to backend joint state.
+- The red dot marks the end-effector position.
+- Drag with the left mouse button to rotate the camera, and use the mouse wheel to zoom.
+
+If you update the URDF or model files, restart the backend and refresh the page.
+
+### 3. Use The Joints Panel
+
+<p align="center">
+  <img src="images/2.png" alt="Panthera-HT Host" width="90%">
+</p>
 
 The `Joints` panel shows and controls the 6 arm joint positions.
+
+If the robot is not at zero position when connected, click `Reset` to return it to zero.
 
 Common operations:
 
@@ -117,13 +134,17 @@ Common operations:
 
 Demo mode is safe for learning the interface. In live mode, always confirm the robot workspace is safe before sending commands.
 
-### 3. Use CONTROL MODE
+### 4. Use CONTROL MODE
+
+<p align="center">
+  <img src="images/3.png" alt="Panthera-HT Host" width="90%">
+</p>
 
 `CONTROL MODE` in the `Robot Connection` floating panel switches the backend control mode.
 
-Common modes:
+Preset modes:
 
-- `Position`: position control mode. The `Joints` panel and `Send Position` are mainly used in this mode.
+- `Position`: position control mode. The `Joints` panel and `Send Position` must be used in this mode.
 - `Gravity`: gravity compensation mode. The arm becomes backdrivable and can be hand-guided for teaching.
 - `Gra+Fri`: gravity + friction compensation mode. It adds friction compensation on top of `Gravity`, changing the hand-guiding feel.
 - `Impedance`: impedance control mode. The arm follows a target position with compliance, useful for interaction and force-direction feedback.
@@ -134,17 +155,11 @@ Notes:
 - In `Gravity` and `Gra+Fri`, the gripper is released so it can be moved manually.
 - In `Impedance`, the gripper uses a light MIT hold control.
 
-### 4. Observe The Robot In The 3D View
-
-The center of the page shows the robot 3D model:
-
-- The model pose updates in real time according to backend joint state.
-- The red dot marks the end-effector position.
-- Drag with the left mouse button to rotate the camera, and use the mouse wheel to zoom.
-
-If you update the URDF or model files, restart the backend and refresh the page.
-
 ### 5. Use WAYPOINTS For Trajectory Planning
+
+<p align="center">
+  <img src="images/4.png" alt="Panthera-HT Host" width="90%">
+</p>
 
 The `Waypoints` section records multiple joint poses and executes them in sequence.
 
@@ -159,6 +174,10 @@ Basic workflow:
 The backend applies smooth interpolation during trajectory execution. In live mode, verify that every waypoint is in a safe workspace and that the trajectory will not pass through the table, fixtures, or people.
 
 ### 6. Run SDK Example Scripts
+
+<p align="center">
+  <img src="images/5.png" alt="Panthera-HT Host" width="75%">
+</p>
 
 The `Scripts` panel reads:
 
