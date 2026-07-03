@@ -2,18 +2,12 @@
 set -Eeuo pipefail
 
 ENV_NAME="${PANTHERA_ENV_NAME:-panthera}"
-PYTHON_VERSION="3.10"
 INSTALL_SYSTEM_DEPS="${INSTALL_SYSTEM_DEPS:-1}"
-INSTALL_YAML_CPP_06="${INSTALL_YAML_CPP_06:-0}"
-SETUP_UDEV_RULES="${SETUP_UDEV_RULES:-1}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIGITAL_TWIN_DIR="${ROOT_DIR}/Panthera_digital_twin-main"
-PANTHERA_PY_DIR="${ROOT_DIR}/panthera_python"
 FRONTEND_DIR="${DIGITAL_TWIN_DIR}/frontend"
 BACKEND_DIR="${DIGITAL_TWIN_DIR}/backend"
-WHEEL_DIR="${PANTHERA_PY_DIR}/motor_whl"
-BUILD_DIR="${ROOT_DIR}/.build"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
@@ -74,81 +68,20 @@ install_system_dependencies() {
     return
   fi
 
-  log "安装 Ubuntu 系统依赖。"
+  log "安装数字孪生所需 Ubuntu 系统依赖。"
   run_sudo apt-get update
   run_sudo apt-get install -y \
-    build-essential \
-    cmake \
-    git \
-    libserialport-dev \
-    udev
-
-  ensure_yaml_cpp_06
-  setup_serial_permissions
+    build-essential
 }
 
-ensure_yaml_cpp_06() {
-  if [[ "${INSTALL_YAML_CPP_06}" != "1" ]]; then
-    log "跳过 yaml-cpp 0.6.1 安装。"
-    return
+require_existing_env() {
+  if ! conda env list | awk '{print $1}' | grep -qx "${ENV_NAME}"; then
+    fail "未找到 Conda 环境 ${ENV_NAME}。请先按 panthera_python/README.md 手动安装 panthera 环境和机械臂 SDK，然后再运行 ./install.sh。"
   fi
 
-  if ldconfig -p 2>/dev/null | grep -q 'libyaml-cpp\.so\.0\.6'; then
-    log "检测到 libyaml-cpp.so.0.6，跳过 yaml-cpp 源码安装。"
-    return
-  fi
-
-  log "未检测到 libyaml-cpp.so.0.6，源码安装 yaml-cpp 0.6.1。"
-  mkdir -p "${BUILD_DIR}"
-
-  if [[ ! -d "${BUILD_DIR}/yaml-cpp/.git" ]]; then
-    git clone https://github.com/jbeder/yaml-cpp.git "${BUILD_DIR}/yaml-cpp"
-  fi
-
-  (
-    cd "${BUILD_DIR}/yaml-cpp"
-    git fetch --tags
-    git checkout yaml-cpp-0.6.1
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
-    cmake --build build -j"$(nproc)"
-    run_sudo cmake --install build
-  )
-
-  run_sudo ldconfig
-}
-
-setup_serial_permissions() {
-  if [[ "${SETUP_UDEV_RULES}" != "1" ]]; then
-    log "跳过串口 udev 权限配置。"
-    return
-  fi
-
-  log "配置 ttyACM 串口权限 udev 规则。"
-  printf 'KERNEL=="ttyACM*", MODE="0777"\n' | run_sudo tee /etc/udev/rules.d/99-panthera.rules >/dev/null
-  run_sudo udevadm control --reload-rules
-  run_sudo udevadm trigger || true
-
-  if compgen -G "/dev/ttyACM*" >/dev/null; then
-    run_sudo chmod -R 777 /dev/ttyACM* || true
-  else
-    log "当前未检测到 /dev/ttyACM* 设备，已写入 udev 规则，设备重新插入后生效。"
-  fi
-}
-
-create_or_update_env() {
-  if conda env list | awk '{print $1}' | grep -qx "${ENV_NAME}"; then
-    log "检测到已有 Conda 环境 ${ENV_NAME}，将在该环境中安装/更新依赖。"
-  else
-    log "创建 Conda 环境 ${ENV_NAME}，Python ${PYTHON_VERSION}。"
-    conda create -y -n "${ENV_NAME}" "python=${PYTHON_VERSION}" pip
-  fi
-
-  log "安装 Conda 侧依赖：nodejs、cmake、pkg-config。"
+  log "检测到已有 Conda 环境 ${ENV_NAME}，将在该环境中安装数字孪生依赖。"
+  log "安装数字孪生所需 Conda 侧依赖：nodejs、cmake、pkg-config。"
   conda install -y -n "${ENV_NAME}" -c conda-forge nodejs cmake pkg-config
-}
-
-python_cp_tag() {
-  conda run -n "${ENV_NAME}" python -c 'import sys; print(f"cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}")'
 }
 
 install_python_dependencies() {
@@ -157,47 +90,14 @@ install_python_dependencies() {
 
   log "安装数字孪生后端 Python 依赖。"
   conda run -n "${ENV_NAME}" python -m pip install -r "${BACKEND_DIR}/requirements.txt"
-
-  log "安装 Panthera 高层库 Python 依赖。"
-  conda run -n "${ENV_NAME}" python -m pip install -r "${PANTHERA_PY_DIR}/requirements.txt"
-
-  log "安装键盘控制依赖：pynput。"
-  conda run -n "${ENV_NAME}" python -m pip install pynput
-}
-
-detect_motor_wheel() {
-  local arch cp_tag wheel
-  arch="$(uname -m)"
-  cp_tag="$(python_cp_tag | tail -n 1)"
-
-  case "${arch}" in
-    x86_64)
-      wheel="${WHEEL_DIR}/hightorque_robot-1.2.0-${cp_tag}-linux_x86_64.whl"
-      ;;
-    aarch64|arm64)
-      wheel="${WHEEL_DIR}/hightorque_robot-1.0.0-${cp_tag}-linux_aarch64.whl"
-      ;;
-    *)
-      fail "不支持的 CPU 架构：${arch}。仓库仅提供 x86_64 和 aarch64 的 hightorque_robot wheel。"
-      ;;
-  esac
-
-  [[ -f "${wheel}" ]] || fail "未找到匹配 Python ${cp_tag} / 架构 ${arch} 的电机 SDK wheel：${wheel}"
-  printf '%s\n' "${wheel}"
-}
-
-install_motor_sdk() {
-  local wheel
-  wheel="$(detect_motor_wheel)"
-  log "安装电机 SDK：$(basename "${wheel}")。"
-  conda run -n "${ENV_NAME}" python -m pip install --force-reinstall "${wheel}"
 }
 
 install_frontend_dependencies() {
-  log "安装前端 npm 依赖。"
+  log "安装前端 npm 依赖并构建 dist。"
   (
     cd "${FRONTEND_DIR}"
     conda run -n "${ENV_NAME}" npm install
+    conda run -n "${ENV_NAME}" npm run build
   )
 }
 
@@ -215,19 +115,19 @@ required = [
     "numpy",
     "scipy",
     "pinocchio",
-    "pynput",
 ]
 
 for name in required:
     importlib.import_module(name)
     print(f"OK: {name}")
 
-try:
-    importlib.import_module("hightorque_robot")
-    print("OK: hightorque_robot")
-except Exception as exc:
-    print(f"WARN: hightorque_robot 导入失败：{exc}")
-    print("      Demo 模式仍可尝试启动；真机模式需要修复该 SDK 的系统库依赖。")
+for name in ["hightorque_robot"]:
+    try:
+        importlib.import_module(name)
+        print(f"OK: {name}")
+    except Exception as exc:
+        print(f"WARN: {name} 导入失败：{exc}")
+        print("      ./install.sh 不安装机械臂 SDK；真机模式请按 panthera_python/README.md 修复 SDK 安装。")
 '
 
   log "验证 Node/npm。"
@@ -239,6 +139,9 @@ print_next_steps() {
   cat <<EOF
 
 安装完成。
+
+本脚本只安装数字孪生依赖，不创建 Conda 环境，也不安装机械臂 SDK。
+机械臂 SDK 请按 panthera_python/README.md 手动安装。
 
 Conda 环境：
 
@@ -253,30 +156,19 @@ Demo 后端：
   cd ${BACKEND_DIR}
   python app.py --demo
 
-前端：
-
-  cd ${FRONTEND_DIR}
-  npm run dev
-
 浏览器打开：
 
-  http://localhost:3000
+  http://localhost:5000
 
 真机模式：
 
   cd ${BACKEND_DIR}
   python app.py --config ../robot_param/Follower.yaml
 
-本脚本默认会安装 Ubuntu 系统依赖，并写入 ttyACM udev 权限规则。
-默认不安装 libyaml-cpp.so.0.6 / yaml-cpp 0.6.1。
+本脚本默认会安装数字孪生所需 Ubuntu 系统依赖。
 如果不想改系统依赖，可这样跳过：
 
   INSTALL_SYSTEM_DEPS=0 ./install.sh
-
-如需额外安装 yaml-cpp 0.6.1，或单独跳过 udev：
-
-  INSTALL_YAML_CPP_06=1 ./install.sh
-  SETUP_UDEV_RULES=0 ./install.sh
 
 EOF
 }
@@ -290,9 +182,8 @@ main() {
 
   log "检测到 conda：$(conda --version)"
   install_system_dependencies
-  create_or_update_env
+  require_existing_env
   install_python_dependencies
-  install_motor_sdk
   install_frontend_dependencies
   verify_installation
   print_next_steps

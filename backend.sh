@@ -82,10 +82,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -d "${BACKEND_DIR}" ]] || fail "找不到后端目录：${BACKEND_DIR}"
-detect_conda || fail "未检测到 conda。请先运行 ./install.sh 安装环境。"
+detect_conda || fail "未检测到 conda。请先安装 Miniconda/Anaconda，并按 panthera_python/README.md 安装 panthera 环境和 SDK。"
 
 if ! conda env list | awk '{print $1}' | grep -qx "${ENV_NAME}"; then
-  fail "未找到 Conda 环境 ${ENV_NAME}。请先运行 ./install.sh。"
+  fail "未找到 Conda 环境 ${ENV_NAME}。请先按 panthera_python/README.md 安装 panthera 环境和 SDK，然后运行 ./install.sh 安装数字孪生依赖。"
 fi
 
 cd "${BACKEND_DIR}"

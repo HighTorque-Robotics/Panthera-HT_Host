@@ -17,20 +17,27 @@ This is the host-side project for the Panthera-HT robotic arm. It includes SDK e
 
 Use Ubuntu 20/22/24, and install Miniconda or Anaconda first.
 
-Then run the following commands from the project root:
+First make the scripts executable:
 
 ```bash
-chmod +x install.sh backend.sh frontend.sh
+chmod +x install.sh install_oneclick.sh backend.sh frontend.sh
+```
+
+Choose the install path based on your setup:
+
+- If you have already configured the Python SDK `panthera` environment by following [panthera_python/README.md](panthera_python/README.md), run:
+
+```bash
 ./install.sh
 ```
 
-The install script first looks for this existing conda environment:
+- If you have not configured the `panthera` environment yet, run the beginner one-click installer:
 
-```text
-panthera
+```bash
+./install_oneclick.sh
 ```
 
-If the environment does not exist, the script creates `panthera` automatically. It then installs the dependencies required by the backend, frontend, and Panthera Python SDK.
+`./install.sh` only installs digital-twin dependencies and builds the frontend. `./install_oneclick.sh` creates/updates the `panthera` environment and installs the robot SDK plus digital-twin dependencies.
 
 ### 2. Check The Real Robot Connection
 
@@ -60,30 +67,32 @@ If no real robot is connected and you only want to learn the UI or debug the fro
 ./backend.sh --demo
 ```
 
-### 4. Start The Frontend
+### 4. Open The Page
 
-Open another terminal:
+Open the backend URL in your browser:
+
+```text
+http://localhost:5000
+```
+
+The backend serves the built frontend directly. Once the page is loaded, you can view robot state, control joints, and run example scripts from the browser.
+
+Only start the frontend dev server when developing or changing frontend code:
 
 ```bash
 ./frontend.sh
 ```
 
-Open this URL in your browser:
-
-```text
-http://localhost:3000
-```
-
-Once the page is loaded, you can view robot state, control joints, and run example scripts from the browser.
+The frontend dev server uses `http://localhost:3000` by default and supports hot reload. After changing frontend source code, run `./install.sh` again or run `npm run build` in the frontend directory if you want port `5000` to serve the latest page.
 
 ## User Guide
 
 ### 1. Open The Page And Check Connection Status
 
-After starting the backend and frontend, open:
+After starting the backend, open:
 
 ```text
-http://localhost:3000
+http://localhost:5000
 ```
 
 Check the top or side status information first:
@@ -170,23 +179,23 @@ In live mode, scripts directly control the robot. Before running a script, open 
 
 For first-time use, follow this order:
 
-1. Run `./install.sh` to install the environment.
+1. Run `./install_oneclick.sh` to install the environment, SDK, and digital-twin dependencies.
 2. Run `./backend.sh --demo` to start the Demo backend.
-3. Run `./frontend.sh` to start the frontend.
-4. Open `http://localhost:3000`.
-5. Drag joints in the `Joints` panel and click `Send Position`.
-6. Try switching `CONTROL MODE` and understand what each mode does.
-7. Add several `WAYPOINTS` and run a simple trajectory in Demo mode.
-8. After confirming that the 3D model moves correctly, try running a simple script.
-9. After the workflow is familiar, switch to live mode.
+3. Open `http://localhost:5000`.
+4. Drag joints in the `Joints` panel and click `Send Position`.
+5. Try switching `CONTROL MODE` and understand what each mode does.
+6. Add several `WAYPOINTS` and run a simple trajectory in Demo mode.
+7. After confirming that the 3D model moves correctly, try running a simple script.
+8. After the workflow is familiar, switch to live mode.
 
 ## Project Layout
 
 ```text
 .
-├── install.sh                         # One-command environment setup
+├── install.sh                         # Install digital-twin dependencies
+├── install_oneclick.sh                # Beginner one-click setup: env + SDK + digital twin
 ├── backend.sh                         # Start backend
-├── frontend.sh                        # Start frontend
+├── frontend.sh                        # Start frontend dev server
 ├── Panthera_digital_twin-main/
 │   ├── backend/                       # Flask backend
 │   ├── frontend/                      # Web frontend
@@ -212,8 +221,11 @@ The web page `Scripts` panel reads one-level `.py` files under `panthera_python/
 ## Common Commands
 
 ```bash
-# Install environment
+# Install digital-twin dependencies
 ./install.sh
+
+# Beginner one-click setup: env + SDK + digital twin
+./install_oneclick.sh
 
 # Start backend: Demo mode
 ./backend.sh --demo
@@ -221,18 +233,18 @@ The web page `Scripts` panel reads one-level `.py` files under `panthera_python/
 # Start backend: live mode
 ./backend.sh
 
-# Start frontend
+# Start frontend dev server (only needed for frontend development)
 ./frontend.sh
 
-# Specify frontend port
+# Specify frontend dev server port
 ./frontend.sh --port 3001
 
-# Frontend build check
+# Rebuild frontend so port 5000 serves the latest page
 cd Panthera_digital_twin-main/frontend
 npm run build
 
-# Remove the conda environment created for this project
-conda env remove -n panthera
+# Reinstall digital-twin dependencies and rebuild frontend
+./install.sh
 ```
 
 ## FAQ
@@ -247,39 +259,33 @@ Use Demo mode:
 
 ### The Frontend Page Does Not Open
 
-Confirm that `./frontend.sh` is running, then open:
+For normal use, confirm that the backend is running, then open:
 
 ```text
-http://localhost:3000
+http://localhost:5000
 ```
 
-If port 3000 is occupied, use another port:
+Only start the frontend dev server when developing frontend code:
 
 ```bash
-./frontend.sh --port 3001
+./frontend.sh
 ```
+
+Then open `http://localhost:3000`. If port 3000 is occupied, use `./frontend.sh --port 3001`.
 
 ### The Backend Cannot Find The Conda Environment
 
-Run:
+First follow [panthera_python/README.md](panthera_python/README.md) to manually install the `panthera` conda environment and robot SDK, then run:
 
 ```bash
 ./install.sh
 ```
 
-To reinstall dependencies, run `./install.sh` again.
-
-If `panthera` is dedicated to this project, you can also remove it first:
-
-```bash
-conda env remove -n panthera
-```
-
-Then run `./install.sh` again.
+To reinstall digital-twin dependencies, run `./install.sh` again. `./install.sh` does not create or remove the `panthera` environment and does not install the robot SDK.
 
 ### Need To Skip System Dependency Installation?
 
-If you only want to install conda, Python, and npm dependencies without changing system packages:
+If you only want to install digital-twin conda, Python, and npm dependencies without changing system packages:
 
 ```bash
 INSTALL_SYSTEM_DEPS=0 ./install.sh

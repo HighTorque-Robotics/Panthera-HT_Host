@@ -11,9 +11,9 @@ if __name__ == "__main__":
     zero_pos = [0.0] * robot.motor_count
     zero_vel = [0.0] * robot.motor_count
     zero_tqe = [0.0] * robot.motor_count
-    pos1 = [0.0, 0.7, 0.7, -0.1, 0.0, 0.0]
-    kp = [4.0, 10.0, 10.0, 2.0, 2.0, 1.0]
-    kd = [0.5, 0.8, 0.8, 0.2, 0.2, 0.1]
+    pos1 = [0.0, 0.8, 0.9, -0.1, 0.0, 0.0]
+    kp = [4.0, 12.0, 12.0, 2.0, 2.0, 1.0]
+    kd = [0.5, 1.0, 1.0, 0.2, 0.2, 0.1]
     vel = [0.3] * robot.motor_count      
     max_torque = [21.0, 36.0, 36.0, 21.0, 10.0, 10.0] 
     try:

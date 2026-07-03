@@ -17,20 +17,27 @@
 
 使用 Ubuntu20/22/24，并提前安装 Miniconda 或 Anaconda。
 
-然后在项目根目录执行：
+先给脚本执行权限：
 
 ```bash
-chmod +x install.sh backend.sh frontend.sh
+chmod +x install.sh install_oneclick.sh backend.sh frontend.sh
+```
+
+根据你的情况选择安装方式：
+
+- 如果之前已经按照 [panthera_python/README.md](panthera_python/README.md) 配置过 Python SDK 的 `panthera` 环境，直接运行：
+
+```bash
 ./install.sh
 ```
 
-安装脚本会优先使用已有的 conda 环境：
+- 如果还没有配置过 `panthera` 环境，运行一键安装脚本：
 
-```text
-panthera
+```bash
+./install_oneclick.sh
 ```
 
-如果没有这个环境，脚本会自动创建 `panthera` 环境，并安装后端、前端和 Panthera Python SDK 需要的依赖。
+`./install.sh` 只安装数字孪生相关依赖，并构建前端页面；`./install_oneclick.sh` 会自动创建/更新 `panthera` 环境，安装机械臂 SDK 和数字孪生依赖。
 
 ### 2. 确认真机连接
 
@@ -39,10 +46,11 @@ panthera
 - 机械臂周围安全，没有人或障碍物。
 - 电源、串口/CAN 设备已经连接好。
 - 使用了正确的机器人配置文件。
+- 在panthera环境中运行0_robot_get_state.py可以正常读取状态
 
 ### 3. 启动后端
 
-新开一个终端，启动真机后端：
+新开一个终端，启动真机后端，然后机械臂关节会处于锁死状态：
 
 ```bash
 ./backend.sh
@@ -60,30 +68,32 @@ panthera
 ./backend.sh --demo
 ```
 
-### 4. 启动前端
+### 4. 打开页面
 
-再开一个终端：
+浏览器打开后端地址：
+
+```text
+http://localhost:5000
+```
+
+后端会直接托管已经构建好的前端页面。看到页面后，就可以在浏览器里查看机械臂状态、控制关节、运行示例脚本。
+
+只有开发或修改前端代码时，才需要单独启动前端开发服务器：
 
 ```bash
 ./frontend.sh
 ```
 
-浏览器打开：
-
-```text
-http://localhost:3000
-```
-
-看到页面后，就可以在浏览器里查看机械臂状态、控制关节、运行示例脚本。
+前端开发服务器默认地址是 `http://localhost:3000`，支持热更新。修改前端源码后，如果希望 `5000` 端口显示最新页面，需要重新执行 `./install.sh` 或在前端目录运行 `npm run build`。
 
 ## 使用教程
 
 ### 1. 打开页面并确认连接状态
 
-启动后端和前端后，浏览器访问：
+启动后端后，浏览器访问：
 
 ```text
-http://localhost:3000
+http://localhost:5000
 ```
 
 页面打开后先看顶部或侧边状态信息：
@@ -97,6 +107,8 @@ http://localhost:3000
 ### 2. 使用 Joints 面板控制关节
 
 在 `Joints` 面板中可以查看和调整 6 个关节的位置。
+
+若机械臂在连接时未处于零位，则此时可以点击`Reset`按钮回到零位。
 
 常用操作：
 
@@ -170,23 +182,23 @@ panthera_python/scripts/
 
 第一次使用建议按这个顺序：
 
-1. 执行 `./install.sh` 安装环境。
+1. 执行 `./install_oneclick.sh` 一键安装环境、SDK 和数字孪生依赖。
 2. 执行 `./backend.sh --demo` 启动 Demo 后端。
-3. 执行 `./frontend.sh` 启动前端。
-4. 打开 `http://localhost:3000`。
-5. 在 `Joints` 面板拖动关节并点击 `Send Position`。
-6. 尝试切换 `CONTROL MODE`，理解不同模式的用途。
-7. 添加几个 `WAYPOINTS`，在 Demo 模式下运行一段简单轨迹。
-8. 确认 3D 模型动作正常后，再尝试运行简单脚本。
-9. 熟悉流程后，再切换到真机模式。
+3. 打开 `http://localhost:5000`。
+4. 在 `Joints` 面板拖动关节并点击 `Send Position`。
+5. 尝试切换 `CONTROL MODE`，理解不同模式的用途。
+6. 添加几个 `WAYPOINTS`，在 Demo 模式下运行一段简单轨迹。
+7. 确认 3D 模型动作正常后，再尝试运行简单脚本。
+8. 熟悉流程后，再切换到真机模式。
 
 ## 项目目录
 
 ```text
 .
-├── install.sh                         # 一键安装环境
+├── install.sh                         # 安装数字孪生依赖
+├── install_oneclick.sh                # 新手一键安装：环境 + SDK + 数字孪生
 ├── backend.sh                         # 启动后端
-├── frontend.sh                        # 启动前端
+├── frontend.sh                        # 启动前端开发服务器
 ├── Panthera_digital_twin-main/
 │   ├── backend/                       # Flask 后端
 │   ├── frontend/                      # Web 前端
@@ -212,8 +224,11 @@ Web 页面顶部的 `Scripts` 面板会读取 `panthera_python/scripts/` 目录�
 ## 常用命令
 
 ```bash
-# 安装环境
+# 安装数字孪生依赖
 ./install.sh
+
+# 新手一键安装：环境 + SDK + 数字孪生
+./install_oneclick.sh
 
 # 启动后端：Demo 模式
 ./backend.sh --demo
@@ -221,18 +236,18 @@ Web 页面顶部的 `Scripts` 面板会读取 `panthera_python/scripts/` 目录�
 # 启动后端：真机模式
 ./backend.sh
 
-# 启动前端
+# 启动前端开发服务器（仅开发前端时需要）
 ./frontend.sh
 
-# 指定前端端口
+# 指定前端开发服务器端口
 ./frontend.sh --port 3001
 
-# 前端构建检查
+# 重新构建前端，让 5000 端口显示最新页面
 cd Panthera_digital_twin-main/frontend
 npm run build
 
-# 删除本项目创建的 conda 环境
-conda env remove -n panthera
+# 重新安装数字孪生依赖并构建前端
+./install.sh
 ```
 
 ## 常见问题
@@ -247,39 +262,33 @@ conda env remove -n panthera
 
 ### 前端页面打不开？
 
-确认 `./frontend.sh` 已经启动，并访问：
+正常使用时只需要确认后端已经启动，并访问：
 
 ```text
-http://localhost:3000
+http://localhost:5000
 ```
 
-如果 3000 端口被占用，可以换端口：
+如果你是在开发前端，才需要启动前端开发服务器：
 
 ```bash
-./frontend.sh --port 3001
+./frontend.sh
 ```
+
+此时访问 `http://localhost:3000`。如果 3000 端口被占用，可以用 `./frontend.sh --port 3001` 换端口。
 
 ### 后端找不到 conda 环境？
 
-先运行：
+先按照 [panthera_python/README.md](panthera_python/README.md) 手动安装 `panthera` conda 环境和机械臂 SDK，然后运行：
 
 ```bash
 ./install.sh
 ```
 
-如果需要重装依赖，直接重新执行 `./install.sh` 即可。
-
-如果确认 `panthera` 是本项目专用环境，也可以先删除：
-
-```bash
-conda env remove -n panthera
-```
-
-然后重新执行 `./install.sh`。
+如果需要重装数字孪生依赖，直接重新执行 `./install.sh` 即可。`./install.sh` 不会创建或删除 `panthera` 环境，也不会安装机械臂 SDK。
 
 ### 需要跳过系统依赖安装？
 
-如果只想安装 conda、Python 和 npm 依赖，不想修改系统依赖：
+如果只想安装数字孪生的 conda、Python 和 npm 依赖，不想修改系统依赖：
 
 ```bash
 INSTALL_SYSTEM_DEPS=0 ./install.sh
