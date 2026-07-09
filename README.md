@@ -314,10 +314,4 @@ INSTALL_SYSTEM_DEPS=0 ./install.sh
 
 ## 更多说明
 
-更详细的数字孪生说明见：
-
-```text
-Panthera_digital_twin-main/README.md
-```
-
 真机模式和 `panthera_python/scripts/` 下的脚本可能直接控制实际硬件，运行前请先确认脚本内容和现场安全。

@@ -312,10 +312,4 @@ INSTALL_SYSTEM_DEPS=0 ./install.sh
 
 ## More Information
 
-For more detailed digital twin documentation, see:
-
-```text
-Panthera_digital_twin-main/README.md
-```
-
 Live mode and scripts under `panthera_python/scripts/` may directly control real hardware. Always check script behavior and site safety before running them.
