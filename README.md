@@ -37,6 +37,11 @@ chmod +x install.sh install_oneclick.sh backend.sh frontend.sh
 ./install_oneclick.sh
 ```
 
+若 npm install 有报 warning，可以尝试以下命令：
+```bash
+npm audit fix --force
+```
+
 `./install.sh` 只安装数字孪生相关依赖，并构建前端页面；`./install_oneclick.sh` 会自动创建/更新 `panthera` 环境，安装机械臂 SDK 和数字孪生依赖。
 
 ### 2. 确认真机连接
