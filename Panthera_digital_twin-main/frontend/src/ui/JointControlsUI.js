@@ -371,6 +371,26 @@ export class JointControlsUI {
                 })
                 .filter(Boolean);
 
+            // Legacy configs may use Joint_1-style names while the URDF uses joint1.
+            // Preserve command indices and limits by matching arm joints in order.
+            if (controlsToCreate.length === 0 && this.robotJointConfigs.length > 0) {
+                const modelArmJoints = Array.from(model.joints.entries())
+                    .filter(([name, joint]) => joint.type !== 'fixed' && !this.isGripperControlName(name));
+                controlsToCreate = modelArmJoints
+                    .slice(0, this.robotJointConfigs.length)
+                    .map(([name, joint], position) => {
+                        const jc = this.robotJointConfigs[position];
+                        if (joint.limits) {
+                            joint.limits.lower = jc.min;
+                            joint.limits.upper = jc.max;
+                        } else {
+                            joint.limits = { lower: jc.min, upper: jc.max };
+                        }
+                        return { joint, index: jc.index };
+                    });
+                console.warn('[JointControlsUI] Robot joint names did not match the URDF; mapped joints by order.');
+            }
+
             if (this.gripperConfig) {
                 controlsToCreate.push({
                     joint: this.createGripperJoint(),

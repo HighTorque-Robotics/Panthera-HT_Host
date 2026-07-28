@@ -31,7 +31,7 @@ sys.path.insert(0, SDK_PATH)
 sys.path.insert(0, os.path.join(SDK_PATH, 'scripts'))
 
 # Local config path (self-contained in digital_twin folder)
-LOCAL_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'robot_param', 'xlb.yaml')
+LOCAL_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'robot_param', 'Follower.yaml')
 
 app = Flask(__name__, static_folder='../frontend/dist', static_url_path='')
 CORS(app, origins="*")

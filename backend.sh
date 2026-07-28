@@ -45,7 +45,7 @@ Usage:
 Options:
   --demo           Start without robot hardware.
   --live           Start with real robot hardware. Default.
-  --config PATH    Robot YAML config for live mode. Default: ${DEFAULT_CONFIG}
+  --config PATH    Robot YAML config. Default: ${DEFAULT_CONFIG}
   --port PORT      Backend port. Default: ${PORT}
   -h, --help       Show this help.
 EOF
@@ -92,7 +92,8 @@ cd "${BACKEND_DIR}"
 
 if [[ "${MODE}" == "demo" ]]; then
   echo "Starting Panthera backend in DEMO mode on http://localhost:${PORT}"
-  exec conda run --no-capture-output -n "${ENV_NAME}" python app.py --demo --port "${PORT}"
+  echo "Config: ${CONFIG}"
+  exec conda run --no-capture-output -n "${ENV_NAME}" python app.py --demo --config "${CONFIG}" --port "${PORT}"
 fi
 
 echo "Starting Panthera backend in LIVE mode on http://localhost:${PORT}"
