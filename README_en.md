@@ -18,6 +18,7 @@ This is the host-side project for the Panthera-HT robotic arm. It includes SDK e
 The interface is divided into left and right areas after startup:
 
 - **Left:** `Joints` is the robot joint position and velocity control panel. `Robot Connection`, located to its right, shows the robot connection status and provides basic control mode switching.
+
 - **Right:** `End Effector` is the pose panel. From top to bottom, it displays position, orientation, external force, and torque.
 
 ### Top Navigation Bar
