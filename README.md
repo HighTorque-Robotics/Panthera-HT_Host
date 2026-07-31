@@ -11,6 +11,28 @@
 - 从 Web 页面运行 `panthera_python/scripts/` 下的 SDK 示例脚本
 - 在没有真机时使用 Demo 仿真模式调试前后端界面
 
+## 界面基本介绍
+
+### 默认开启面板
+启动后界面分为左右两个区域：
+**左侧**：`Joints`是机械臂关节位置速度控制面板，在其右侧`Robot Connection`为机械臂连接状态和基础控制模式切换面板。
+**右侧**：`End Effector`为位姿面板，由上到下分别显示位置、姿态、外力及力矩。
+
+### 顶部导航栏功能
+
+| 序号 | 页面名称 | 功能说明 |
+| --- | --- | --- |
+| 1 | 视觉 | 开关机械臂显示 |
+| 2 | 碰撞 | 开关机械臂碰撞体积显示 |
+| 3 | 坐标轴 | 开关机械臂坐标轴 |
+| 4 | 阴影 | 开关机械臂阴影效果 |
+| 5 | 文件 | 开关文件面板 |
+| 6 | 关节 | 开关关节控制面板 |
+| 7 | 结构 | —— |
+| 8 | End Effector | 开关位姿面板 |
+| 9 | Keyboard | 开关键盘控制面板 |
+| 10 | Scripts | 运行SDK控制脚本 |
+
 ## 快速启动
 
 ### 1. 准备环境
@@ -31,13 +53,13 @@ chmod +x install.sh install_oneclick.sh backend.sh frontend.sh
 ./install.sh
 ```
 
-- 如果还没有配置过 `panthera` 环境，运行一键安装脚本：
+- 如果还没有配置过 `panthera` 环境，可运行一键安装脚本：
 
 ```bash
 ./install_oneclick.sh
 ```
 
-若 npm install 有报 warning，可以尝试以下命令：
+若其中 npm install 过程有报 warning，可以尝试以下命令：
 ```bash
 npm audit fix --force
 ```
@@ -51,11 +73,11 @@ npm audit fix --force
 - 机械臂周围安全，没有人或障碍物。
 - 电源、串口/CAN 设备已经连接好。
 - 使用了正确的机器人配置文件。
-- 在panthera环境中运行0_robot_get_state.py可以正常读取状态
+- 在panthera环境中运行`0_robot_get_state.py`可以正常读取状态
 
 ### 3. 启动后端
 
-新开一个终端，启动真机后端，然后机械臂关节会处于锁死状态：
+新开一个终端，启动真机后端，默认使用本机5000端口，然后机械臂关节会处于锁死状态：
 
 ```bash
 ./backend.sh
@@ -83,13 +105,13 @@ http://localhost:5000
 
 后端会直接托管已经构建好的前端页面。看到页面后，就可以在浏览器里查看机械臂状态、控制关节、运行示例脚本。
 
-只有开发或修改前端代码时，才需要单独启动前端开发服务器：
+注意：只有开发或修改前端代码时，才需要单独启动前端开发服务器：
 
 ```bash
 ./frontend.sh
 ```
 
-前端开发服务器默认地址是 `http://localhost:3000`，支持热更新。修改前端源码后，如果希望 `5000` 端口显示最新页面，需要重新执行 `./install.sh` 或在前端目录运行 `npm run build`。
+前端开发服务器默认地址是 `http://localhost:3000`，支持热更新。修改前端源码后，如果希望 `5000` 端口显示最新页面，需要重新执行 `./install.sh` 或在前端目录`Panthera_digital_twin-main/frontend`中运行 `npm run build`。
 
 ## 使用教程
 
@@ -103,12 +125,16 @@ http://localhost:5000
 
 页面打开后先看顶部或侧边状态信息：
 
-- `Demo Mode` 表示当前是仿真模式，不会控制真实机械臂。
-- `Robot Connection` 浮窗中点击 `Connect` 连接机械臂
-- 3D 视图中的机械臂会跟随后端状态实时更新。
+<p align="center">
+  <img src="images/0.png" alt="Panthera-HT Host" width="90%">
+</p>
 
-如果页面没有数据变化，先确认后端终端没有报错，并刷新浏览器页面。
-
+- `Robot Connection`面板：
+  - Connect：连接机械臂
+  - Disconnect：断开当前连接
+  - Joints显示7个表示为6个关节+1个夹爪。
+- `End Effector`面板底部`Connected`表示当前真机连接；`Demo Mode` 则表示当前是仿真模式，不会控制真实机械臂。
+- `Robot Connection`面板中，注意Server URL要与启动的配置一致，如果没有修改，就按照默认设置即可。
 
 ### 2. 使用 3D 视图观察机械臂
 
@@ -136,7 +162,7 @@ http://localhost:5000
 - 在数值输入框中输入角度值，进行更精确的调整。
 - 使用速度滑条或速度输入框调整发送位置指令时的速度，默认值是 `0.6`。
 - 点击 `Send Position`，把当前 6 个关节目标位置发送给后端。
-- 点击 `Reset`，让 6 个关节回到零位。Reset 使用固定速度策略，接近零位时会平滑减速。
+- 点击 `Reset`，让 6 个关节回到零位。
 
 Demo 模式下可以放心熟悉界面；真机模式下每次发送指令前都要确认机械臂周围安全。
 
