@@ -11,6 +11,30 @@ This is the host-side project for the Panthera-HT robotic arm. It includes SDK e
 - Run SDK example scripts from `panthera_python/scripts/` directly from the web page.
 - Use Demo simulation mode to develop and test the frontend/backend UI without a real robot.
 
+## Basic UI Overview
+
+### Panels Open By Default
+
+The interface is divided into left and right areas after startup:
+
+- **Left:** `Joints` is the robot joint position and velocity control panel. `Robot Connection`, located to its right, shows the robot connection status and provides basic control mode switching.
+- **Right:** `End Effector` is the pose panel. From top to bottom, it displays position, orientation, external force, and torque.
+
+### Top Navigation Bar
+
+| No. | Item | Function |
+| --- | --- | --- |
+| 1 | Visual | Toggle the robot model display |
+| 2 | Collision | Toggle the robot collision geometry display |
+| 3 | Axes | Toggle the robot coordinate axes display |
+| 4 | Shadow | Toggle robot shadows |
+| 5 | Files | Toggle the file panel |
+| 6 | Joints | Toggle the joint control panel |
+| 7 | Structure | - |
+| 8 | End Effector | Toggle the pose panel |
+| 9 | Keyboard | Toggle the keyboard control panel |
+| 10 | Scripts | Run SDK control scripts |
+
 ## Quick Launch
 
 ### 1. Prepare The Environment
@@ -31,10 +55,16 @@ Choose the install path based on your setup:
 ./install.sh
 ```
 
-- If you have not configured the `panthera` environment yet, run the beginner one-click installer:
+- If you have not configured the `panthera` environment yet, you can run the one-click installer:
 
 ```bash
 ./install_oneclick.sh
+```
+
+If `npm install` reports warnings during this process, you can try:
+
+```bash
+npm audit fix --force
 ```
 
 `./install.sh` only installs digital-twin dependencies and builds the frontend. `./install_oneclick.sh` creates/updates the `panthera` environment and installs the robot SDK plus digital-twin dependencies.
@@ -50,7 +80,7 @@ Before starting live mode, confirm that:
 
 ### 3. Start The Backend
 
-Open a new terminal and start the live backend. After startup, the robot joints will be locked:
+Open a new terminal and start the live backend, which uses local port `5000` by default. After startup, the robot joints will be locked:
 
 ```bash
 ./backend.sh
@@ -78,13 +108,13 @@ http://localhost:5000
 
 The backend serves the built frontend directly. Once the page is loaded, you can view robot state, control joints, and run example scripts from the browser.
 
-Only start the frontend dev server when developing or changing frontend code:
+Note: Only start the frontend dev server when developing or changing frontend code:
 
 ```bash
 ./frontend.sh
 ```
 
-The frontend dev server uses `http://localhost:3000` by default and supports hot reload. After changing frontend source code, run `./install.sh` again or run `npm run build` in the frontend directory if you want port `5000` to serve the latest page.
+The frontend dev server uses `http://localhost:3000` by default and supports hot reload. After changing frontend source code, run `./install.sh` again or run `npm run build` in `Panthera_digital_twin-main/frontend` if you want port `5000` to serve the latest page.
 
 ## User Guide
 
@@ -98,11 +128,16 @@ http://localhost:5000
 
 Check the top or side status information first:
 
-- `Demo Mode` means the system is in simulation mode and will not control real hardware.
-- Click `Connect` in the `Robot Connection` floating panel to connect to the robot.
-- The 3D robot view updates in real time from backend state.
+<p align="center">
+  <img src="images/0.png" alt="Panthera-HT Host" width="90%">
+</p>
 
-If the page state does not update, check that the backend terminal has no errors, then refresh the browser page.
+- In the `Robot Connection` panel:
+  - `Connect` connects to the robot.
+  - `Disconnect` disconnects the current connection.
+  - Seven entries under `Joints` represent six robot joints and one gripper.
+- At the bottom of the `End Effector` panel, `Connected` indicates that a real robot is connected. `Demo Mode` means the system is in simulation mode and will not control real hardware.
+- In the `Robot Connection` panel, make sure the `Server URL` matches the startup configuration. If you did not change the configuration, keep the default setting.
 
 ### 2. Observe The Robot In The 3D View
 
@@ -130,7 +165,7 @@ Common operations:
 - Type into the numeric input for more precise adjustment.
 - Use the velocity slider or input box to set the velocity used by position commands. The default value is `0.6`.
 - Click `Send Position` to send the current joint target positions to the backend.
-- Click `Reset` to return all joints to zero. Reset uses a fixed velocity profile and slows down smoothly near zero.
+- Click `Reset` to return all joints to zero.
 
 Demo mode is safe for learning the interface. In live mode, always confirm the robot workspace is safe before sending commands.
 
