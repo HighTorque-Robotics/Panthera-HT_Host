@@ -5,7 +5,7 @@ This directory contains the digital twin implementation for Panthera-HT:
 - `backend/`: Flask backend, WebSocket state broadcast, robot control loop, waypoint and script APIs.
 - `frontend/`: Vite/Three.js web UI, 3D model viewer, control panels, waypoints, and script runner.
 - `robot_param/`: robot configuration files used by the backend.
-- `Panthera-HT_description/`: URDF and mesh assets used by the frontend.
+- `../panthera_python/Panthera-HT_description/`: shared URDF and mesh assets used by the backend and frontend.
 
 For installation, startup, and user-facing usage instructions, use the root README files:
 

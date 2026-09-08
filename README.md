@@ -253,9 +253,9 @@ panthera_python/scripts/
 ├── Panthera_digital_twin-main/
 │   ├── backend/                       # Flask 后端
 │   ├── frontend/                      # Web 前端
-│   ├── robot_param/                   # 机器人配置
-│   └── Panthera-HT_description/       # URDF 和模型资源
+│   └── robot_param/                   # 机器人配置
 └── panthera_python/
+    ├── Panthera-HT_description/       # URDF 和模型资源
     ├── scripts/                       # SDK 示例脚本
     ├── motor_whl/                     # 电机 SDK wheel
     └── requirements.txt               # Python 依赖

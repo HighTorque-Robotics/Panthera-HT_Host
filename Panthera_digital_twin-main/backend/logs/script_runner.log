@@ -1,2 +1,7 @@
-[ScriptRunner] Starting 1_Joint_PD_control.py
-[ScriptRunner] Script exited with code -15
+[ScriptRunner] Starting 1_moveJ_control.py
+发送控制命令...
+执行状态0：True
+执行状态0：True
+保持位置2秒...
+所有电机已停止
+[ScriptRunner] Script finished

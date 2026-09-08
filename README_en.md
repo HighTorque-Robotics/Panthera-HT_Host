@@ -254,9 +254,9 @@ For first-time use, follow this order:
 ├── Panthera_digital_twin-main/
 │   ├── backend/                       # Flask backend
 │   ├── frontend/                      # Web frontend
-│   ├── robot_param/                   # Robot configs
-│   └── Panthera-HT_description/       # URDF and model assets
+│   └── robot_param/                   # Robot configs
 └── panthera_python/
+    ├── Panthera-HT_description/       # URDF and model assets
     ├── scripts/                       # SDK example scripts
     ├── motor_whl/                     # Motor SDK wheel
     └── requirements.txt               # Python dependencies

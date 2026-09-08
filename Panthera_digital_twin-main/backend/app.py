@@ -14,6 +14,8 @@ import time
 import threading
 import logging
 import argparse
+import atexit
+import signal
 import yaml
 import numpy as np
 import pinocchio as pin
@@ -30,8 +32,10 @@ SDK_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'panthera_python'
 sys.path.insert(0, SDK_PATH)
 sys.path.insert(0, os.path.join(SDK_PATH, 'scripts'))
 
-# Local config path (self-contained in digital_twin folder)
-LOCAL_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'robot_param', 'Follower.yaml')
+# Default config path shared with the Panthera SDK.  Keeping the backend on
+# this canonical config also keeps its URDF/mesh paths out of the duplicate
+# digital-twin description directory.
+LOCAL_CONFIG_PATH = os.path.join(SDK_PATH, 'robot_param', 'Follower.yaml')
 
 app = Flask(__name__, static_folder='../frontend/dist', static_url_path='')
 CORS(app, origins="*")
@@ -87,7 +91,6 @@ current_torques = [0.0] * 6
 # Modes: 'position', 'gravity_comp', 'gravity_friction', 'impedance'
 control_mode = 'position'
 
-
 # Gravity compensation parameters
 gravity_gain = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
 joint_offset = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
@@ -107,7 +110,11 @@ URDF_PATH = None
 # Thread control
 target_lock = threading.Lock()
 loop_running = False
+control_thread = None
+broadcast_thread = None
 connected_clients = set()
+_shutdown_lock = threading.Lock()
+_shutdown_complete = False
 
 # Forward kinematics data
 current_fk = {
@@ -586,13 +593,17 @@ def _set_control_mode(mode):
     global control_mode, impedance_target, reset_profile_active, reset_gripper_active
 
     previous_mode = control_mode
-    control_mode = mode
 
     if mode == 'position':
         if previous_mode in ['gravity_comp', 'gravity_friction', 'impedance']:
-            _hold_current_position_target()
+            # This function is normally called while target_lock is held;
+            # use the cached state directly to avoid re-entering the lock.
+            target_positions[:] = list(current_positions)
+            _cancel_reset_profile()
+        control_mode = mode
         return
 
+    control_mode = mode
     _cancel_reset_profile()
 
     if mode == 'impedance':
@@ -807,7 +818,6 @@ def state_broadcast_loop():
             elif not demo_mode and robot is not None:
                 # Read fresh state from real robot
                 robot.send_get_motor_state_cmd()
-                robot.motor_send_cmd()
 
                 pos = robot.get_current_pos()
                 vel = robot.get_current_vel()
@@ -892,15 +902,17 @@ def state_broadcast_loop():
 
 def start_loops():
     """Start control and broadcast loops"""
-    global loop_running
+    global loop_running, control_thread, broadcast_thread
     loop_running = True
 
     # Control loop (high frequency)
-    control_thread = threading.Thread(target=control_loop, daemon=True)
+    control_thread = threading.Thread(target=control_loop, daemon=True,
+                                      name='panthera-control-loop')
     control_thread.start()
 
     # Broadcast loop (medium frequency)
-    broadcast_thread = threading.Thread(target=state_broadcast_loop, daemon=True)
+    broadcast_thread = threading.Thread(target=state_broadcast_loop, daemon=True,
+                                        name='panthera-broadcast-loop')
     broadcast_thread.start()
 
     print(f"Control loop started at {CONTROL_FREQ} Hz")
@@ -1093,6 +1105,83 @@ SCRIPT_LOG_DIR = os.path.join(os.path.dirname(__file__), 'logs')
 SCRIPT_LOG_PATH = os.path.join(SCRIPT_LOG_DIR, 'script_runner.log')
 _script_output_lock = threading.Lock()
 _SCRIPT_OUTPUT_LIMIT = 1000
+
+
+def shutdown_backend(reason='shutdown'):
+    """Stop background work and release the real robot on process exit.
+
+    ``set_stop`` is the SDK command that stops all motors.  It must be sent
+    after our command loops and script runner have been asked to stop, so a
+    final control command cannot immediately re-lock the motors.
+    """
+    global loop_running, trajectory_running, script_mode
+    global _script_process, _script_name
+    global control_thread, broadcast_thread, _shutdown_complete
+
+    with _shutdown_lock:
+        if _shutdown_complete:
+            return
+        _shutdown_complete = True
+
+        print(f"\nShutting down backend ({reason})...")
+        loop_running = False
+        trajectory_running = False
+        script_mode = False
+        _script_stop_event.set()
+
+        running_script = _script_process
+        _script_process = None
+        _script_name = None
+
+    # Stop a demo subprocess or request an in-process script thread to exit.
+    if isinstance(running_script, _subprocess.Popen):
+        if running_script.poll() is None:
+            try:
+                running_script.terminate()
+                running_script.wait(timeout=2.0)
+            except Exception:
+                try:
+                    running_script.kill()
+                    running_script.wait(timeout=1.0)
+                except Exception:
+                    pass
+    elif isinstance(running_script, threading.Thread):
+        if running_script.is_alive() and running_script is not threading.current_thread():
+            running_script.join(timeout=2.0)
+
+    # Let the command loops finish their current iteration before set_stop.
+    for worker in (control_thread, broadcast_thread):
+        if worker is not None and worker.is_alive() and worker is not threading.current_thread():
+            worker.join(timeout=1.0)
+
+    current_robot = robot
+    if current_robot is not None and not demo_mode:
+        stop_command = getattr(current_robot, 'set_stop', None)
+        if callable(stop_command):
+            try:
+                stop_command()
+                print("Robot motors stopped.")
+            except Exception as exc:
+                print(f"WARNING: failed to stop robot motors: {exc}", file=sys.stderr)
+        else:
+            print("WARNING: robot SDK has no set_stop() method; motors may remain enabled.",
+                  file=sys.stderr)
+
+
+def _handle_shutdown_signal(signum, _frame):
+    signal_name = signal.Signals(signum).name
+    shutdown_backend(signal_name)
+    if signum == signal.SIGINT:
+        raise KeyboardInterrupt
+    raise SystemExit(128 + signum)
+
+
+def _install_shutdown_handlers():
+    signal.signal(signal.SIGINT, _handle_shutdown_signal)
+    signal.signal(signal.SIGTERM, _handle_shutdown_signal)
+
+
+atexit.register(shutdown_backend)
 
 
 def _append_script_output(text):
@@ -2263,6 +2352,8 @@ def _process_keyboard():
 # ============== Main ==============
 
 if __name__ == '__main__':
+    _install_shutdown_handlers()
+
     parser = argparse.ArgumentParser(description='Digital Twin Backend Server')
     parser.add_argument('--config', '-c', type=str,
                         default=LOCAL_CONFIG_PATH,
@@ -2310,5 +2401,10 @@ if __name__ == '__main__':
     print(f"   WebSocket:   ws://localhost:{args.port}")
     print("=" * 50)
 
-    socketio.run(app, host='0.0.0.0', port=args.port, debug=False,
-                 allow_unsafe_werkzeug=True)
+    try:
+        socketio.run(app, host='0.0.0.0', port=args.port, debug=False,
+                     allow_unsafe_werkzeug=True)
+    except KeyboardInterrupt:
+        print("\nBackend interrupted by user.")
+    finally:
+        shutdown_backend('server stopped')
