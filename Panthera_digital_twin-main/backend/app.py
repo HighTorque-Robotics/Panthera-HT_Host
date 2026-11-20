@@ -65,7 +65,7 @@ script_state = {
 # Control state
 target_positions = [0.0] * 6
 target_velocity = 0.6
-max_torque = [10.0, 10.0, 10.0, 10.0, 10.0, 2.0]
+max_torque = [14.0, 25.0, 25.0, 14.0, 5.0, 5.0]
 reset_profile_active = False
 reset_profile_target = [0.0] * 6
 reset_profile_started_at = 0.0
@@ -984,7 +984,8 @@ def get_arm_description_files():
     def scan_directory(path, prefix='', url_prefix=''):
         """Recursively scan directory and build file list"""
         for entry in os.scandir(path):
-            rel_path = os.path.join(prefix, entry.name) if prefix else entry.name
+            # These paths are browser URLs and file-map keys, including on Windows.
+            rel_path = f'{prefix}/{entry.name}' if prefix else entry.name
             if entry.is_file():
                 url_path = rel_path
                 if url_prefix:
