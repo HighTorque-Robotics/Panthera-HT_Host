@@ -1125,11 +1125,11 @@ _SCRIPT_OUTPUT_LIMIT = 1000
 
 
 def shutdown_backend(reason='shutdown'):
-    """Stop background work and release the real robot on process exit.
+    """Stop background work and leave every motor in brake/damping mode.
 
-    ``set_stop`` is the SDK command that stops all motors.  It must be sent
-    after our command loops and script runner have been asked to stop, so a
-    final control command cannot immediately re-lock the motors.
+    Brake commands must follow the command loops and script runner so a final
+    position command cannot overwrite them. Do not use set_stop(), which can
+    disable motor output instead of retaining damping.
     """
     global loop_running, trajectory_running, script_mode
     global _script_process, _script_name
@@ -1166,23 +1166,25 @@ def shutdown_backend(reason='shutdown'):
         if running_script.is_alive() and running_script is not threading.current_thread():
             running_script.join(timeout=2.0)
 
-    # Let the command loops finish their current iteration before set_stop.
+    # Let the command loops finish their current iteration before braking.
     for worker in (control_thread, broadcast_thread):
         if worker is not None and worker.is_alive() and worker is not threading.current_thread():
             worker.join(timeout=1.0)
 
     current_robot = robot
     if current_robot is not None and not demo_mode:
-        stop_command = getattr(current_robot, 'set_stop', None)
-        if callable(stop_command):
-            try:
-                stop_command()
-                print("Robot motors stopped.")
-            except Exception as exc:
-                print(f"WARNING: failed to stop robot motors: {exc}", file=sys.stderr)
-        else:
-            print("WARNING: robot SDK has no set_stop() method; motors may remain enabled.",
-                  file=sys.stderr)
+        try:
+            motors = current_robot.get_motors()
+            if not motors:
+                raise RuntimeError('Robot SDK returned no motors')
+            for motor in motors:
+                motor.brake()
+            current_robot.motor_send_cmd()
+            # Allow the final command to reach the controller before process exit.
+            time.sleep(0.05)
+            print("Robot motors switched to brake/damping mode.")
+        except Exception as exc:
+            print(f"WARNING: failed to brake robot motors: {exc}", file=sys.stderr)
 
 
 def _handle_shutdown_signal(signum, _frame):
