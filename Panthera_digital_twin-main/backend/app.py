@@ -549,6 +549,20 @@ def _cancel_reset_profile():
     reset_profile_handoff_until = 0.0
 
 
+def _merge_arm_joint_positions(updates):
+    """Merge selected edits into existing targets while target_lock is held."""
+    next_positions = target_positions.copy()
+    for index, position in updates.items():
+        joint_index = int(index)
+        if not 0 <= joint_index < len(next_positions):
+            raise ValueError(f"Invalid arm joint index: {index}")
+        position = float(position)
+        if not np.isfinite(position):
+            raise ValueError(f"Invalid joint position: {position}")
+        next_positions[joint_index] = position
+    return _clamp_arm_positions(next_positions)
+
+
 def _start_smooth_position_move(positions, gripper_target=None, with_handoff=False):
     global target_positions, target_velocity, reset_profile_active, reset_profile_target, reset_profile_started_at
     global reset_profile_handoff_until, reset_profile_handoff_positions
@@ -1060,6 +1074,9 @@ def move_all():
             gripper_cfg = _gripper_config()
             if gripper_cfg and len(positions) > gripper_cfg["index"]:
                 _set_gripper_target(positions[gripper_cfg["index"]], velocity=gripper_velocity)
+
+        if 'joint_positions' in data:
+            target_positions[:] = _merge_arm_joint_positions(data['joint_positions'])
 
         if 'gripper' in data:
             _set_gripper_target(data['gripper'], velocity=gripper_velocity)
@@ -2006,6 +2023,9 @@ def handle_move_all(data):
             gripper_cfg = _gripper_config()
             if gripper_cfg and len(positions) > gripper_cfg["index"]:
                 _set_gripper_target(positions[gripper_cfg["index"]], velocity=gripper_velocity)
+
+        if 'joint_positions' in data:
+            target_positions[:] = _merge_arm_joint_positions(data['joint_positions'])
 
         if 'gripper' in data:
             _set_gripper_target(data['gripper'], velocity=gripper_velocity)

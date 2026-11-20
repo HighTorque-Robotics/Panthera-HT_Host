@@ -170,6 +170,19 @@ export class RobotConnection {
     }
 
     /**
+     * Update selected joint targets together without replacing untouched targets.
+     * @param {Object<number, number>} jointPositions - Joint index -> target radians
+     */
+    moveJoints(jointPositions, velocity = null, gripper = null) {
+        if (!this.connected || !this.socket) return
+
+        const data = { joint_positions: jointPositions }
+        if (velocity !== null) data.velocity = velocity
+        if (gripper !== null) data.gripper = gripper
+        this.socket.emit('move_all', data)
+    }
+
+    /**
      * Send all joints position command
      * @param {number[]|null} positions - Array of 6 joint positions in radians, or null for gripper-only commands
      * @param {number} [velocity] - Movement velocity (optional)

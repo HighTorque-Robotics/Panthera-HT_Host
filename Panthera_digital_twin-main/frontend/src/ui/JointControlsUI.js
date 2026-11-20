@@ -1041,7 +1041,7 @@ export class JointControlsUI {
     }
 
     /**
-     * Send all current slider positions as one command.
+     * Send staged edits only; untouched joints keep their backend targets.
      */
     sendPendingJointPositions() {
         if (!this.robotConnection || !this.robotConnection.isConnected()) return;
@@ -1056,25 +1056,27 @@ export class JointControlsUI {
                 return ai - bi;
             });
 
-        const armPositions = [];
+        const jointPositions = {};
         let gripperPosition = null;
         for (const slider of sliders) {
+            const jointIndex = Number(slider.getAttribute('data-joint-index'));
+            if (!this.pendingJointValues.has(jointIndex)) continue;
+
             const jointName = slider.getAttribute('data-joint');
-            const value = parseFloat(slider.value);
-            if (Number.isNaN(value)) return;
+            const value = this.pendingJointValues.get(jointIndex);
+            if (!Number.isFinite(value)) return;
 
             if (this.isGripperName(jointName)) {
                 gripperPosition = value;
-            } else {
-                armPositions.push(value);
+            } else if (canSendArm) {
+                jointPositions[jointIndex] = value;
             }
         }
 
-        if (!canSendArm && gripperPosition === null) return;
-        if (canSendArm && armPositions.length === 0 && gripperPosition === null) return;
+        if (Object.keys(jointPositions).length === 0 && gripperPosition === null) return;
 
         const velocity = Number.isFinite(this.commandVelocity) ? this.commandVelocity : 0.6;
-        this.robotConnection.moveAll(canSendArm ? armPositions : null, velocity, gripperPosition);
+        this.robotConnection.moveJoints(jointPositions, velocity, gripperPosition);
         this.pendingJointValues.clear();
         this.updateSendButtonState();
     }
